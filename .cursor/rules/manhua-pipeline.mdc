@@ -1,0 +1,19 @@
+---
+description: 完整漫剧生成流水线规则（AutoDL API）
+alwaysApply: true
+---
+
+# 漫剧主链
+
+- 默认分辨率固定为 `768p横`（竖屏任务才用 `768p竖`）。
+- 成片主链：多图参考 H3（`manhua_video_ref` / `manhua_video_ref_hq`），不要用纯文生 `manhua_video_t2v` 做人设主生成。
+- 镜间连续用 `manhua_bridge`（首尾帧）；对白用 `manhua_lipsync`。
+- 定妆/静帧不在本仓库托管工作流内：用外部生图（如 zealman-pipeline C19/C16），产物必须是公网可访问 URL 再写入 `ref_images`。
+- 全链路注入同一画风锁 + 身份锁；单镜只改动作与运镜，不改身份句。
+- 成功后立即下载 results URL（短时有效），落盘到 `runs/`。
+
+# 禁止
+
+- 把 API token 写进可提交代码或文档示例。
+- 二次元转真人、破坏画风的洗图步骤进主链。
+- 空字符串占位未使用的 ref 槽。

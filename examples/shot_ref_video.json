@@ -1,0 +1,11 @@
+{
+  "shot_id": "smoke_ref_vid",
+  "workflow": "manhua_video_ref",
+  "resolution": "768p横",
+  "duration": 5,
+  "prompt": "夜雨石桥，少年缓缓转头望向河面，衣袂轻动，灯笼暖光微闪，镜头缓慢推进。水墨漫剧画风，人物身份锁定。",
+  "ref_images": [
+    "https://REPLACE_WITH_PUBLIC_CHARACTER_SHEET_URL.png",
+    "https://REPLACE_WITH_PUBLIC_STILL_URL.png"
+  ]
+}

@@ -1,0 +1,146 @@
+# Logical workflow registry for AutoDL.art hosted ComfyUI API.
+# Docs: https://autodl.art/docs/comfyui_api/
+#
+# Flat body fields (not Comfy nodeId:field). Images/audio must be public URLs.
+# Project default resolution: 768p横
+
+defaults:
+  resolution: "768p横"
+  duration: 5
+
+workflows:
+  # --- 漫剧主链 ---
+  manhua_video_ref:
+    workflow_id: minimax_h3_lightx2v_v5
+    description: "H3 多图参考成片（一致性主链，最多 9 参考图，1–10s）"
+    kind: multi_ref_video
+    defaults:
+      resolution: "768p横"
+      duration: 5
+    required: [prompt, ref_image_0]
+    optional: [seed, duration, resolution]
+    ref_image_slots: 9
+    ref_image_prefix: ref_image_
+
+  manhua_video_ref_15s:
+    workflow_id: minimax_h3_lightx2v_v5_15s
+    description: "H3 多图生视频 15 秒"
+    kind: multi_ref_video
+    defaults:
+      resolution: "768p横"
+      duration: 15
+    required: [prompt, ref_image_0]
+    optional: [seed, duration, resolution]
+    ref_image_slots: 9
+    ref_image_prefix: ref_image_
+
+  manhua_video_ref_hq:
+    workflow_id: minimax_h3_zm_u24
+    description: "H3 多图多音频升级画质（对应 Zealman U24）"
+    kind: multi_ref_av
+    defaults:
+      resolution: "768p横"
+      duration: 15
+    required: [prompt, ref_image_0]
+    optional: [seed, duration, resolution]
+    ref_image_slots: 9
+    ref_image_prefix: ref_image_
+    ref_audio_slots: 3
+    ref_audio_prefix: ref_audio_
+
+  manhua_video_ref_fast:
+    workflow_id: minimax_h3_zm_u08
+    description: "H3 多图多音频高速版"
+    kind: multi_ref_av
+    defaults:
+      resolution: "768p横"
+      duration: 5
+    required: [prompt, ref_image_0]
+    optional: [seed, duration, resolution]
+    ref_image_slots: 9
+    ref_image_prefix: ref_image_
+    ref_audio_slots: 3
+    ref_audio_prefix: ref_audio_
+
+  manhua_video_av:
+    workflow_id: minimax_h3_image_audio_to_video_v2
+    description: "H3 多图多音频生视频"
+    kind: multi_ref_av
+    defaults:
+      resolution: "768p横"
+      duration: 5
+    required: [prompt, ref_image_0]
+    optional: [seed, duration, resolution]
+    ref_image_slots: 9
+    ref_image_prefix: ref_image_
+    ref_audio_slots: 3
+    ref_audio_prefix: ref_audio_
+
+  manhua_video_av_15s:
+    workflow_id: minimax_h3_image_audio_to_video_v2_15s
+    description: "H3 多图多音频 15 秒"
+    kind: multi_ref_av
+    defaults:
+      resolution: "768p横"
+      duration: 15
+    required: [prompt, ref_image_0]
+    optional: [seed, duration, resolution]
+    ref_image_slots: 9
+    ref_image_prefix: ref_image_
+    ref_audio_slots: 3
+    ref_audio_prefix: ref_audio_
+
+  manhua_bridge:
+    workflow_id: minimax_h3_lightx2v
+    description: "H3 首尾帧衔接（镜间连续）"
+    kind: flf_video
+    defaults:
+      resolution: "768p横"
+      duration: 5
+    required: [prompt, first_frame, last_frame]
+    optional: [seed, duration, resolution]
+
+  manhua_bridge_b99:
+    workflow_id: minimax_h3_b99_002
+    description: "H3 首尾帧（AI资源仓备选）"
+    kind: flf_video
+    defaults:
+      resolution: "768p横"
+      duration: 5
+    required: [prompt, first_frame, last_frame]
+    optional: [seed, duration, resolution]
+
+  manhua_lipsync:
+    workflow_id: minimax_h3_image_audio_to_video
+    description: "图+音频自动对口型"
+    kind: lipsync
+    defaults:
+      resolution: "768p横"
+      audio_duration: 5
+    required: [ref_image_0, ref_audio_0]
+    optional: [resolution, audio_duration]
+
+  manhua_video_t2v:
+    workflow_id: minimax_h3_lightx2v_no_pic
+    description: "纯文生视频（预览用，人物易漂，勿作漫剧主链）"
+    kind: t2v
+    defaults:
+      resolution: "768p横"
+      duration: 5
+    required: [prompt]
+    optional: [seed, duration, resolution]
+
+  manhua_tts:
+    workflow_id: indextts2-v1
+    description: "IndexTTS2 配音（工作流页核对入参）"
+    kind: tts
+    required: []
+    optional: []
+
+stages:
+  manhua_video: manhua_video_ref
+  manhua_video_long: manhua_video_ref_15s
+  manhua_video_hq: manhua_video_ref_hq
+  manhua_bridge: manhua_bridge
+  manhua_lipsync: manhua_lipsync
+  manhua_preview: manhua_video_t2v

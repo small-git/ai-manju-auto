@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ShotJob",
+  "type": "object",
+  "required": ["shot_id", "prompt"],
+  "properties": {
+    "shot_id": { "type": "string" },
+    "scene_id": { "type": "string" },
+    "character_ids": { "type": "array", "items": { "type": "string" } },
+    "prompt": { "type": "string" },
+    "seed": { "type": ["integer", "null"] },
+    "duration": { "type": "integer", "minimum": 1, "maximum": 15 },
+    "resolution": {
+      "type": "string",
+      "description": "AutoDL resolution enum, e.g. 768p横",
+      "default": "768p横"
+    },
+    "stage": { "type": "string" },
+    "workflow": {
+      "type": "string",
+      "description": "Logical alias from config/workflows.yaml"
+    },
+    "ref_images": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Public image URLs for multi-ref slots"
+    },
+    "ref_audios": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Public audio URLs"
+    },
+    "first_frame": { "type": "string" },
+    "last_frame": { "type": "string" },
+    "audio_duration": { "type": "integer", "minimum": 1, "maximum": 15 },
+    "tail_frame_note": { "type": "string" },
+    "state": { "type": "object" }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "project_id": "manhua_autodl_e01",
+  "style_lock": "manhua_ink",
+  "resolution": "768p横",
+  "video_workflow": "manhua_video_ref",
+  "steps": ["video"],
+  "identity_lock": "主角林舟：十七岁少年，黑发束高马尾，左眉一道浅疤，青灰色交领短打，腰系玄色布带，手持竹简；五官清俊，眼神沉静。全程保持同一张脸、同一发型、同一套服装与水墨漫剧画风。",
+  "ref_images": [
+    "https://litter.catbox.moe/p713m6.png",
+    "https://litter.catbox.moe/fyle4p.png"
+  ],
+  "video": {
+    "id": "E01_S01_SH01_vid",
+    "shot_id": "E01_S01_SH01_vid",
+    "duration": 5,
+    "prompt": "0-5秒：夜雨石桥，林舟缓缓转头望向河面，衣袂轻动，灯笼暖光微闪，镜头缓慢推进。保持水墨漫剧画风，人物身份完全锁定。"
+  }
+}

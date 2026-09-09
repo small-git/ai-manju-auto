@@ -1,0 +1,16 @@
+---
+description: AutoDL.art ComfyUI API 约定
+globs: src/**/*.py,config/**/*.yaml,examples/**/*.json
+alwaysApply: false
+---
+
+# AutoDL API
+
+- Base: `https://autodl.art`
+- Submit: `POST /api/v1/comfyui/comfyui_workflow/{workflow_id}`
+- Poll: `GET /api/v1/comfyui/comfyui_workflow/result/{task_id}`
+- Header: `Authorization: <token>`（令牌分组选 ComfyUI），`Content-Type: application/json`
+- Body 为扁平 JSON（不是 Comfy nodeId:field）；图片/音频字段必须是 URL。
+- 状态：`QUEUED` / `RUNNING` / `SUCCESS`（及平台可能的 `COMPLETED`）/ `FAILED`
+- 逻辑别名 → `workflow_id` 只改 `config/workflows.yaml`，业务代码用别名。
+- 默认 `resolution=768p横`，`duration` 按工作流上限（常见 1–10 或 15）。
