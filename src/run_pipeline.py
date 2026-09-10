@@ -30,6 +30,7 @@ from story_registry import (  # noqa: E402
     register_story,
     resolve_story_pack,
 )
+from zh_log import fail, info, ok, step, warn  # noqa: E402
 
 
 def _is_story_pack(pack: dict[str, Any]) -> bool:
@@ -47,6 +48,7 @@ def run_legacy_project(pack: dict[str, Any], out_root: Path) -> dict[str, Any]:
     identity = pack.get("identity_lock") or ""
     project_id = pack.get("project_id") or "manhua"
     out_root.mkdir(parents=True, exist_ok=True)
+    step("流水线", "进入旧版工程模式", project_id=project_id, steps=steps)
 
     client = AutodlClient()
     cfg = load_workflow_config()
@@ -71,7 +73,7 @@ def run_legacy_project(pack: dict[str, Any], out_root: Path) -> dict[str, Any]:
         report["steps"]["video"] = meta
 
     _dump_json(out_root / "pipeline_report.json", report)
-    print(f"report → {out_root / 'pipeline_report.json'}")
+    ok("流水线", "旧版工程报告已写出", path=str(out_root / "pipeline_report.json"))
     return report
 
 
@@ -82,17 +84,20 @@ def run_story_project(
     story_id: str,
     shot_ids: list[str] | None = None,
 ) -> dict[str, Any]:
+    step("流水线", "进入故事成片", story_id=story_id)
     assert_story_bound_for_video(pack, story_id)
     expanded = expand_story_pack(pack)
     style = load_style_lock(expanded.get("style_lock", "manhua_ink"))
     steps = list(expanded.get("steps") or ["video"])
     out_root.mkdir(parents=True, exist_ok=True)
     _dump_json(out_root / "expanded_shot_jobs.json", expanded)
+    ok("流水线", "故事包已展开", shots=len(expanded["shot_jobs"]), out=str(out_root))
 
     jobs = expanded["shot_jobs"]
     if shot_ids:
         allow = set(shot_ids)
         jobs = [j for j in jobs if j["shot_id"] in allow]
+        info("流水线", "已按镜号过滤", keep=len(jobs), filter=",".join(shot_ids))
 
     client = AutodlClient()
     cfg = load_workflow_config()
@@ -109,9 +114,15 @@ def run_story_project(
     if "video" in steps:
         video_dir = out_root / "03_video"
         video_dir.mkdir(parents=True, exist_ok=True)
+        step("流水线", "开始批量成片", count=len(jobs))
         for job in jobs:
             wf = job.get("workflow") or ""
             if (not job.get("ref_images")) and wf.startswith("manhua_video_ref"):
+                fail(
+                    "流水线",
+                    f"{job['shot_id']} 缺少参考图，无法走多参考成片",
+                    workflow=wf,
+                )
                 raise StoryError(
                     f"{job['shot_id']}: 多参考成片需要 ref_images/still_url。"
                     "请先生图填参考，或本镜临时改用 manhua_video_t2v 预览。"
@@ -129,6 +140,7 @@ def run_story_project(
     if "bridge" in steps:
         bridge_dir = out_root / "04_bridge"
         bridge_dir.mkdir(parents=True, exist_ok=True)
+        step("流水线", "开始镜间 Bridge")
         for job in jobs:
             if not job.get("bridge_from"):
                 continue
@@ -142,6 +154,11 @@ def run_story_project(
                 "last_frame": job.get("last_frame"),
             }
             if not br["first_frame"] or not br["last_frame"]:
+                warn(
+                    "流水线",
+                    f"{job['shot_id']} 跳过 Bridge（缺首尾帧公网 URL）",
+                    bridge_from=job.get("bridge_from"),
+                )
                 report["shots"].setdefault(job["shot_id"], {})["bridge"] = {
                     "skipped": True,
                     "reason": "need first_frame + last_frame public URLs",
@@ -159,7 +176,7 @@ def run_story_project(
             report["shots"].setdefault(job["shot_id"], {})["bridge"] = meta
 
     _dump_json(out_root / "pipeline_report.json", report)
-    print(f"report → {out_root / 'pipeline_report.json'}")
+    ok("流水线", "故事成片报告已写出", path=str(out_root / "pipeline_report.json"))
     return report
 
 
@@ -188,17 +205,27 @@ def main() -> None:
 
     ensure_env()
     story_id = (args.story or "").strip() or None
+    step("流水线", "启动", story=story_id or "(未指定)", file=str(args.project_json or ""))
 
     if story_id and not args.project_json:
         pack, pack_path = resolve_story_pack(story_id)
+        ok("流水线", "已按 story_id 加载故事包", path=str(pack_path))
     elif args.project_json:
         pack_path = args.project_json
         pack = json.loads(pack_path.read_text(encoding="utf-8"))
         if _is_story_pack(pack) and story_id and pack.get("story_id") != story_id:
+            fail(
+                "流水线",
+                "故事引用不匹配",
+                story=story_id,
+                file_story_id=pack.get("story_id"),
+            )
             raise SystemExit(
                 f"故事引用不匹配：--story={story_id} vs file story_id={pack.get('story_id')}"
             )
+        ok("流水线", "已从文件加载工程", path=str(pack_path))
     else:
+        fail("流水线", "未提供 project_json 也未提供 --story")
         raise SystemExit("请提供 project_json 或 --story <story_id>")
 
     if args.steps:
@@ -212,37 +239,40 @@ def main() -> None:
     )
 
     if _is_story_pack(pack):
+        step("流水线", "正在校验故事包", story_id=pack.get("story_id"))
         issues = validate_story_pack(pack)
         if issues:
-            print("INVALID story pack:")
+            fail("流水线", "故事包校验未通过")
             for i in issues:
-                print(f"  - {i}")
+                info("流水线", f"校验问题：{i}")
             raise SystemExit(2)
         register_story(pack, pack_path)
+        ok("流水线", "故事包校验通过并已注册", story_id=pack["story_id"], chapter=pack.get("chapter_id"))
         if args.register_only or args.validate_only:
-            print(f"OK: story_id={pack['story_id']} chapter={pack.get('chapter_id')} registered")
             return
         if args.expand_only:
             # expand 允许只读展开，但仍建议带 --story
             if story_id and pack.get("story_id") != story_id:
+                fail("流水线", "展开前故事引用不匹配")
                 raise SystemExit("故事引用不匹配")
+            step("流水线", "仅展开 ShotJob，不成片")
             expanded = expand_story_pack(pack)
             path = out / "expanded_shot_jobs.json"
             _dump_json(path, expanded)
-            print(f"expanded → {path} ({len(expanded['shot_jobs'])} shots)")
+            ok("流水线", "展开完成", path=str(path), shots=len(expanded["shot_jobs"]))
             return
         # 成片硬门禁：必须显式 --story
         try:
             assert_story_bound_for_video(pack, story_id)
         except StoryError as e:
-            print(e)
+            fail("流水线", "成片门禁未通过（必须显式 --story）", error=e)
             raise SystemExit(2) from e
 
         shot_ids = [s.strip() for s in args.shots.split(",") if s.strip()] or None
         try:
             run_story_project(pack, out, story_id=story_id, shot_ids=shot_ids)
         except StoryError as e:
-            print(e)
+            fail("流水线", "故事成片中断", error=e)
             raise SystemExit(2) from e
         return
 

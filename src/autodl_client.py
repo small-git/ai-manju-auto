@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from zh_log import fail, info, ok, step, warn
+
 
 class AutodlError(RuntimeError):
     pass
@@ -27,6 +29,7 @@ class AutodlClient:
         self.base_url = (base_url or os.getenv("AUTODL_BASE_URL", "https://autodl.art")).rstrip("/")
         self.api_token = api_token if api_token is not None else os.getenv("AUTODL_API_TOKEN", "")
         if not self.api_token:
+            fail("AutoDL", "缺少 AUTODL_API_TOKEN（令牌管理 → ComfyUI 分组）")
             raise AutodlError("AUTODL_API_TOKEN is required (ComfyUI token group)")
         self.poll_interval = float(poll_interval or os.getenv("POLL_INTERVAL_SEC", "3"))
         self.poll_timeout = float(poll_timeout or os.getenv("POLL_TIMEOUT_SEC", "1800"))
@@ -38,38 +41,47 @@ class AutodlClient:
                 "Accept": "application/json",
             }
         )
+        ok("AutoDL", "客户端已就绪", base=self.base_url)
 
     def submit(self, workflow_id: str, body: dict[str, Any]) -> str:
         url = f"{self.base_url}/api/v1/comfyui/comfyui_workflow/{workflow_id}"
+        step("AutoDL", "正在提交工作流", workflow_id=workflow_id)
         resp = self.session.post(url, json=body, timeout=120)
-        data = self._parse(resp, f"POST {url}")
+        data = self._parse(resp, f"提交工作流 {workflow_id}")
         task_id = (data.get("data") or {}).get("task_id")
         if not task_id:
+            fail("AutoDL", "提交成功但未返回 task_id", data=data)
             raise AutodlError(f"submit missing task_id: {data}")
+        ok("AutoDL", "工作流已提交", task_id=task_id, workflow_id=workflow_id)
         return str(task_id)
 
     def result(self, task_id: str) -> dict[str, Any]:
         url = f"{self.base_url}/api/v1/comfyui/comfyui_workflow/result/{task_id}"
         resp = self.session.get(url, timeout=60)
-        data = self._parse(resp, f"GET {url}")
+        data = self._parse(resp, f"查询任务 {task_id}")
         return data.get("data") or data
 
     def wait_result(self, task_id: str) -> dict[str, Any]:
+        step("AutoDL", "开始轮询任务结果", task_id=task_id, timeout_sec=self.poll_timeout)
         deadline = time.time() + self.poll_timeout
         while time.time() < deadline:
             data = self.result(task_id)
             status = str(data.get("status") or "").upper()
             duration = data.get("duration")
-            print(f"task={task_id} status={status} duration={duration}")
+            info("AutoDL", "轮询中", task_id=task_id, status=status, duration=duration)
             if status in {"SUCCESS", "COMPLETED", "DONE"}:
+                ok("AutoDL", "任务已成功", task_id=task_id, duration=duration)
                 return data
             if status in {"FAILED", "ERROR", "CANCELLED"}:
+                fail("AutoDL", "任务失败或已取消", task_id=task_id, data=data)
                 raise AutodlError(f"task failed: {data}")
             time.sleep(self.poll_interval)
+        fail("AutoDL", "轮询超时", task_id=task_id, timeout_sec=self.poll_timeout)
         raise AutodlError(f"poll timeout after {self.poll_timeout}s task_id={task_id}")
 
     def download(self, url: str, dest: Path) -> Path:
         dest.parent.mkdir(parents=True, exist_ok=True)
+        step("AutoDL", "正在下载产物", dest=str(dest))
         # result URLs are short-lived — download ASAP without auth usually
         with requests.get(url, stream=True, timeout=180) as resp:
             resp.raise_for_status()
@@ -82,6 +94,8 @@ class AutodlClient:
     def download_results(self, data: dict[str, Any], out_dir: Path, stem: str) -> list[Path]:
         results = data.get("results") or []
         saved: list[Path] = []
+        if not results:
+            warn("AutoDL", "结果列表为空，无可下载文件", stem=stem)
         for i, item in enumerate(results):
             if isinstance(item, str):
                 url = item
@@ -99,7 +113,7 @@ class AutodlClient:
             path = out_dir / f"{stem}_{i}{ext}"
             self.download(url, path)
             saved.append(path)
-            print(f"saved {path}")
+            ok("AutoDL", "产物已保存", path=str(path))
         return saved
 
     @staticmethod
@@ -107,10 +121,13 @@ class AutodlClient:
         try:
             data = resp.json()
         except Exception as e:
+            fail("AutoDL", f"{label} 返回非 JSON", http=resp.status_code, body=resp.text[:400])
             raise AutodlError(f"{label} non-JSON HTTP {resp.status_code}: {resp.text[:400]}") from e
         if resp.status_code >= 400:
+            fail("AutoDL", f"{label} HTTP 错误", http=resp.status_code, data=data)
             raise AutodlError(f"{label} HTTP {resp.status_code}: {data}")
         code = str(data.get("code") or "")
         if code and code.lower() not in {"success", "0", "ok"}:
+            fail("AutoDL", f"{label} 业务错误码", code=code, data=data)
             raise AutodlError(f"{label} API error: {data}")
         return data

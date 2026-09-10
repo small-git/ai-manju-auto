@@ -4,7 +4,7 @@
       "title": "竹简雨桥",
       "chapter_id": "CH01",
       "project_id": "linzhou_e01",
-      "path": "D:/Projects/autodl-manhua-pipeline/stories/manhua_demo/story.json",
+      "path": "examples/manhua_demo/story_pack.json",
       "logline": "少年林舟雨夜立于江南石桥，手握竹简，决意启程追查失踪的师门秘录。"
     },
     "overtime_system": {

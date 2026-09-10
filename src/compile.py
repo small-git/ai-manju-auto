@@ -11,6 +11,7 @@ import yaml
 from dotenv import load_dotenv
 
 from autodl_client import AutodlClient, AutodlError
+from zh_log import fail, ok, step
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -131,10 +132,21 @@ def run_shot(
     cfg = cfg or load_workflow_config()
     alias, workflow_id, body = compile_body(cfg, shot, style_lock, identity_lock)
     shot_id = shot.get("shot_id") or shot.get("id") or "shot"
-    print(f"submit alias={alias} workflow_id={workflow_id} body_keys={list(body.keys())}")
-    task_id = client.submit(workflow_id, body)
-    data = client.wait_result(task_id)
-    files = client.download_results(data, out_dir, stem=str(shot_id))
+    step(
+        "成片",
+        "准备提交单镜",
+        shot_id=shot_id,
+        alias=alias,
+        workflow_id=workflow_id,
+        body_keys=list(body.keys()),
+    )
+    try:
+        task_id = client.submit(workflow_id, body)
+        data = client.wait_result(task_id)
+        files = client.download_results(data, out_dir, stem=str(shot_id))
+    except Exception as e:
+        fail("成片", f"单镜 {shot_id} 执行中断", error=e)
+        raise
     meta = {
         "shot_id": shot_id,
         "workflow_alias": alias,
@@ -148,4 +160,5 @@ def run_shot(
     }
     meta_path = out_dir / f"{shot_id}_meta.json"
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    ok("成片", "单镜完成", shot_id=shot_id, files=len(files), meta=str(meta_path))
     return meta

@@ -1,0 +1,31 @@
+---
+description: 改完必提交、必做功能测试、运行日志必须中文标明进度与故障点
+alwaysApply: true
+---
+
+# 开发工作流（强制）
+
+## 1. 改完代码必须提交仓库
+
+- 每次完成一组可运行的代码改动后，立刻 `git add` + `git commit`，再 `git push` 到 `origin`（当前分支）。
+- 提交信息用中文，说明「为什么」，1–2 句。
+- 禁止提交密钥：`.env`、`.manhua-secrets.json`、token、PAT。
+- 未提交不得声称任务完成；push 失败要当场说明原因并修好。
+
+## 2. 必须做实际功能性测试
+
+- 不只 typecheck / lint：要跑通真实入口。
+  - 工作台：`pnpm workbench`，请求 `http://127.0.0.1:3780` 及相关 `/api/*`。
+  - Python：`python src/run_pipeline.py … --validate-only` / `--expand-only`；有 token 时再测真实提交。
+- 测试失败先修再提交；在回复里写清测了什么、结果如何。
+
+## 3. 运行日志必须中文、标明位置
+
+- 关键步骤用中文打点：「正在…」「已完成…」「失败于…：原因」。
+- Python 用 `from zh_log import info, ok, fail, step`；TS 用 `import { info, ok, fail, step } from "../zh-log.js"`（按相对路径）。
+- 禁止只打英文缩写或裸异常栈当唯一信息；异常要带「卡在哪一步」。
+
+```text
+[进行中][流水线] 正在校验故事包 manhua_demo
+[失败][AutoDL] 失败于：轮询任务超时 | timeout_sec=1800 task_id=...
+```

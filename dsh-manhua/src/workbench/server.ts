@@ -47,6 +47,7 @@ import {
   writingSeedTool,
 } from "../tools/core.js";
 import { resolvePlanPath } from "../production/plan.js";
+import { fail, info, ok, step, warn } from "../zh-log.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -354,6 +355,8 @@ function exportChapter(storyId: string) {
 
 async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pathname: string): Promise<void> {
   const method = req.method || "GET";
+  const skipNoise = pathname === "/api/health" || pathname.startsWith("/api/media/");
+  if (!skipNoise) step("工作台", "收到请求", { method, path: pathname });
   try {
     if (method === "GET" && pathname === "/api/health") {
       sendJson(res, 200, { ok: true, name: "漫剧工作台", port: PORT });
@@ -684,9 +687,12 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
       );
       return;
     }
+    warn("工作台", "未知接口", { method, path: pathname });
     sendJson(res, 404, { ok: false, error: `未知接口: ${method} ${pathname}` });
   } catch (err) {
-    sendJson(res, 500, { ok: false, error: err instanceof Error ? err.message : String(err) });
+    const message = err instanceof Error ? err.message : String(err);
+    fail("工作台", `${method} ${pathname}`, { error: message });
+    sendJson(res, 500, { ok: false, error: message });
   }
 }
 
@@ -700,6 +706,11 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`[漫剧工作台] http://${HOST}:${PORT}`);
-  console.log(`[漫剧工作台] 模块：密钥/文案/故事/定妆/道具/分镜/计划/成片/画布/出片`);
+  ok("工作台", "服务已启动", { url: `http://${HOST}:${PORT}` });
+  info("工作台", "模块：密钥/文案/故事/定妆/道具/分镜/计划/成片/画布/出片");
+});
+
+server.on("error", (err) => {
+  fail("工作台", "监听端口失败", { error: err instanceof Error ? err.message : String(err), port: PORT });
+  process.exit(1);
 });
