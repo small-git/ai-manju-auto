@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ensureDir, loadConfig } from "../config.js";
 import { requireKey } from "../keys.js";
+import { fail, ok, step } from "../zh-log.js";
 
 export type TtsResult = {
   localPath: string;
@@ -28,6 +29,7 @@ export async function synthesizeDialogue(opts: {
   const apiKey = await requireKey("openai");
   const model = process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts";
   const voice = opts.voice || process.env.OPENAI_TTS_VOICE || "alloy";
+  step("TTS", "开始合成对白", { model, voice, chars: opts.text.length });
   const resp = await fetch(`${cfg.openaiBaseUrl}/audio/speech`, {
     method: "POST",
     headers: {
@@ -43,13 +45,15 @@ export async function synthesizeDialogue(opts: {
   });
   if (!resp.ok) {
     const errText = await resp.text();
-    throw new Error(`OpenAI TTS HTTP ${resp.status}: ${errText.slice(0, 400)}`);
+    fail("TTS", "合成失败", { http: resp.status, error: errText.slice(0, 400) });
+    throw new Error(`OpenAI TTS 失败 HTTP ${resp.status}: ${errText.slice(0, 400)}`);
   }
   const buf = Buffer.from(await resp.arrayBuffer());
   ensureDir(path.dirname(opts.destPath));
   let dest = opts.destPath;
   if (!path.extname(dest)) dest += ".mp3";
   fs.writeFileSync(dest, buf);
+  ok("TTS", "对白音频已保存", { path: dest, bytes: buf.length });
   return {
     localPath: dest,
     url: publicUrlFor(dest),

@@ -4,6 +4,7 @@
  */
 import { loadConfig } from "../config.js";
 import { parseProvider, requireKey, type KeyProvider } from "../keys.js";
+import { fail, ok, step } from "../zh-log.js";
 
 export type ProbeResult = {
   ok: true;
@@ -34,6 +35,7 @@ export async function probeProvider(providerRaw: string): Promise<ProbeResult> {
   const cfg = loadConfig();
   const started = Date.now();
   const signal = AbortSignal.timeout(20_000);
+  step("密钥探测", "开始连通测试", { provider });
 
   try {
     if (provider === "openai") {
@@ -46,6 +48,7 @@ export async function probeProvider(providerRaw: string): Promise<ProbeResult> {
       });
       const body = await readBody(resp);
       if (!resp.ok) {
+        fail("密钥探测", "OpenAI 不通", { http: resp.status, detail: body });
         return {
           ok: true,
           reachable: false,
@@ -57,6 +60,7 @@ export async function probeProvider(providerRaw: string): Promise<ProbeResult> {
           detail: body,
         };
       }
+      ok("密钥探测", "OpenAI 连通", { latency_ms: Date.now() - started });
       return {
         ok: true,
         reachable: true,
@@ -78,6 +82,7 @@ export async function probeProvider(providerRaw: string): Promise<ProbeResult> {
       const resp = await fetch(endpoint, { method: "GET", headers: { Accept: "application/json" }, signal });
       const body = await readBody(resp);
       if (!resp.ok) {
+        fail("密钥探测", "Gemini 不通", { http: resp.status, detail: body });
         return {
           ok: true,
           reachable: false,
@@ -89,6 +94,7 @@ export async function probeProvider(providerRaw: string): Promise<ProbeResult> {
           detail: body,
         };
       }
+      ok("密钥探测", "Gemini 连通", { latency_ms: Date.now() - started });
       return {
         ok: true,
         reachable: true,
@@ -114,6 +120,7 @@ export async function probeProvider(providerRaw: string): Promise<ProbeResult> {
       });
       const body = await readBody(resp);
       if (resp.status === 401 || resp.status === 403) {
+        fail("密钥探测", "AutoDL 鉴权失败", { http: resp.status, detail: body });
         return {
           ok: true,
           reachable: false,
@@ -126,6 +133,7 @@ export async function probeProvider(providerRaw: string): Promise<ProbeResult> {
         };
       }
       // 404 / business error still means host + token path are reachable
+      ok("密钥探测", "AutoDL 连通", { latency_ms: Date.now() - started, http: resp.status });
       return {
         ok: true,
         reachable: true,
@@ -139,6 +147,7 @@ export async function probeProvider(providerRaw: string): Promise<ProbeResult> {
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    fail("密钥探测", "探测异常", { provider, error: msg });
     return {
       ok: true,
       reachable: false,

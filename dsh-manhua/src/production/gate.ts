@@ -1,5 +1,6 @@
 import type { StoryPack } from "../story.js";
 import { getCharacter, getEnvironment, getProp } from "../story.js";
+import { fail, ok } from "../zh-log.js";
 
 export type GateIssue = {
   level: "error" | "warn";
@@ -150,6 +151,8 @@ export function checkChapterReady(pack: StoryPack): {
 export function assertShotReady(pack: StoryPack, shotId: string): void {
   const errors = checkShotReady(pack, shotId).filter((i) => i.level === "error");
   if (errors.length) {
+    fail("齐套门闸", `镜头未通过`, { shot_id: shotId, errors: errors.length });
     throw new Error(`齐套未通过 ${shotId}:\n- ` + errors.map((e) => e.message).join("\n- "));
   }
+  ok("齐套门闸", "镜头齐套通过", { shot_id: shotId });
 }

@@ -4,6 +4,7 @@
 import { loadConfig } from "../config.js";
 import { requireKey } from "../keys.js";
 import type { StoryPack, StoryShot } from "../story.js";
+import { fail, ok, step } from "../zh-log.js";
 
 async function chatJson<T>(opts: {
   system: string;
@@ -12,6 +13,7 @@ async function chatJson<T>(opts: {
   signal?: AbortSignal;
 }): Promise<T> {
   const cfg = loadConfig();
+  step("文案LLM", "正在请求 Chat Completions", { model: cfg.openaiChatModel });
   const apiKey = await requireKey("openai");
   const signal = opts.signal ?? AbortSignal.timeout(180_000);
   const resp = await fetch(`${cfg.openaiBaseUrl}/chat/completions`, {
@@ -38,10 +40,15 @@ async function chatJson<T>(opts: {
   if (!resp.ok) {
     const msg = data.error?.message || JSON.stringify(data).slice(0, 400);
     const code = data.error?.code ? `（${data.error.code}）` : "";
+    fail("文案LLM", `请求失败${code}`, { error: msg });
     throw new Error(`文案 LLM 失败${code}: ${msg}`);
   }
   const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("文案 LLM 无内容");
+  if (!content) {
+    fail("文案LLM", "返回无内容");
+    throw new Error("文案 LLM 无内容");
+  }
+  ok("文案LLM", "已收到 JSON 响应", { chars: content.length });
   return JSON.parse(content) as T;
 }
 

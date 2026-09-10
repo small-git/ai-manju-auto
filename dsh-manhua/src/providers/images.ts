@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ensureDir, loadConfig } from "../config.js";
 import { requireKey } from "../keys.js";
+import { fail, ok, step } from "../zh-log.js";
 
 export type SavedImage = {
   localPath: string;
@@ -32,6 +33,7 @@ export async function generateSheetWithGpt(opts: {
   signal?: AbortSignal;
 }): Promise<SavedImage> {
   const cfg = loadConfig();
+  step("生图", "开始生成定妆（OpenAI）", { model: cfg.openaiImageModel });
   const openaiApiKey = await requireKey("openai");
   const body = {
     model: cfg.openaiImageModel,
@@ -53,10 +55,14 @@ export async function generateSheetWithGpt(opts: {
     error?: { message?: string };
   };
   if (!resp.ok) {
-    throw new Error(`OpenAI image HTTP ${resp.status}: ${JSON.stringify(data)}`);
+    fail("生图", "OpenAI 定妆请求失败", { http: resp.status, data: JSON.stringify(data).slice(0, 400) });
+    throw new Error(`OpenAI 定妆失败 HTTP ${resp.status}: ${JSON.stringify(data)}`);
   }
   const item = data.data?.[0];
-  if (!item) throw new Error(`OpenAI image empty: ${JSON.stringify(data)}`);
+  if (!item) {
+    fail("生图", "OpenAI 定妆返回空结果", { data: JSON.stringify(data).slice(0, 400) });
+    throw new Error(`OpenAI 定妆结果为空: ${JSON.stringify(data)}`);
+  }
 
   let localPath = opts.destPath;
   let url = item.url;
@@ -69,9 +75,11 @@ export async function generateSheetWithGpt(opts: {
     if (!path.extname(localPath)) localPath = localPath + ext;
     localPath = await writeBytes(localPath, buf);
   } else {
-    throw new Error("OpenAI image missing b64_json/url");
+    fail("生图", "OpenAI 定妆缺少 b64_json/url");
+    throw new Error("OpenAI 定妆缺少 b64_json/url");
   }
   url = url || publicUrlFor(localPath);
+  ok("生图", "定妆已保存", { path: localPath, has_public_url: !!url });
   return { localPath, url, model: cfg.openaiImageModel, provider: "openai" };
 }
 
@@ -82,8 +90,9 @@ export async function generateStillWithGemini(opts: {
   signal?: AbortSignal;
 }): Promise<SavedImage> {
   const cfg = loadConfig();
-  const geminiApiKey = await requireKey("gemini");
   const model = cfg.geminiImageModel;
+  step("生图", "开始生成静帧（Gemini）", { model });
+  const geminiApiKey = await requireKey("gemini");
   let base = cfg.geminiBaseUrl.replace(/\/$/, "");
   // LinkAPI / Google: root host needs /v1beta; OpenAI-compat /v1 is wrong for native generateContent
   if (/^https?:\/\/[^/]+$/i.test(base)) {
@@ -115,20 +124,24 @@ export async function generateStillWithGemini(opts: {
     error?: { message?: string };
   };
   if (!resp.ok) {
-    throw new Error(`Gemini image HTTP ${resp.status}: ${JSON.stringify(data)}`);
+    fail("生图", "Gemini 静帧请求失败", { http: resp.status, data: JSON.stringify(data).slice(0, 400) });
+    throw new Error(`Gemini 静帧失败 HTTP ${resp.status}: ${JSON.stringify(data)}`);
   }
   const parts = data.candidates?.[0]?.content?.parts || [];
   const inline = parts.find((p) => p.inlineData?.data)?.inlineData;
   if (!inline?.data) {
-    throw new Error(`Gemini image missing inlineData: ${JSON.stringify(data).slice(0, 500)}`);
+    fail("生图", "Gemini 静帧缺少 inlineData", { data: JSON.stringify(data).slice(0, 500) });
+    throw new Error(`Gemini 静帧缺少 inlineData: ${JSON.stringify(data).slice(0, 500)}`);
   }
   const ext = (inline.mimeType || "").includes("jpeg") ? ".jpg" : ".png";
   let localPath = opts.destPath;
   if (!path.extname(localPath)) localPath += ext;
   localPath = await writeBytes(localPath, Buffer.from(inline.data, "base64"));
+  const url = publicUrlFor(localPath);
+  ok("生图", "静帧已保存", { path: localPath, has_public_url: !!url });
   return {
     localPath,
-    url: publicUrlFor(localPath),
+    url,
     model,
     provider: "gemini",
   };

@@ -18,6 +18,7 @@ alwaysApply: true
   - 工作台：`pnpm workbench`，请求 `http://127.0.0.1:3780` 及相关 `/api/*`。
   - Python：`python src/run_pipeline.py … --validate-only` / `--expand-only`；有 token 时再测真实提交。
 - 测试失败先修再提交；在回复里写清测了什么、结果如何。
+- 仓库根目录可跑：`.\scripts\smoke.ps1`（或 `scripts\smoke.cmd`）做无密钥功能烟测。
 
 ## 3. 运行日志必须中文、标明位置
 
