@@ -4,21 +4,21 @@
       "title": "竹简雨桥",
       "chapter_id": "CH01",
       "project_id": "linzhou_e01",
-      "path": "examples/manhua_demo/story_pack.json",
+      "path": "stories/manhua_demo/story.json",
       "logline": "少年林舟雨夜立于江南石桥，手握竹简，决意启程追查失踪的师门秘录。"
     },
     "overtime_system": {
       "title": "无敌加班成长系统·第一章：猝死边缘的黑洞",
       "chapter_id": "CH01",
       "project_id": "overtime_system_ch01",
-      "path": "D:/Projects/autodl-manhua-pipeline/stories/overtime_system/story.json",
+      "path": "stories/overtime_system/story.json",
       "logline": "运维小刚在漆黑加班夜里濒临猝死，却被屏幕黑洞卷入虚拟世界，并绑定「无敌加班成长系统」。"
     },
     "shandong_1994": {
       "title": "山东小孩·第一步",
       "chapter_id": "CH01",
       "project_id": "shandong_1994",
-      "path": "D:/Projects/autodl-manhua-pipeline/stories/shandong_1994/story.json",
+      "path": "stories/shandong_1994/story.json",
       "logline": "一个出生在济宁农村的安静男孩，在村小学撤并的意外变故中，靠母亲悄悄攒下的车费迈出走向更大世界的第一步。"
     }
   }

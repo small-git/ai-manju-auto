@@ -67,6 +67,7 @@ import {
 import type { WritingKind } from "../production/writing.js";
 import { probeProvider } from "../providers/probe.js";
 import { RUNS_DIR, ensureDir } from "../paths.js";
+import { fail, info, ok, step, warn } from "../zh-log.js";
 
 export type ToolResult = Record<string, unknown>;
 
@@ -305,11 +306,13 @@ export async function autodlVideoRef(
   },
   signal?: AbortSignal,
 ): Promise<ToolResult> {
+  step("成片工具", "准备多参考成片", { story_id: args.story_id, shot_id: args.shot_id });
   const { pack } = loadStory(args.story_id);
   if (!args.skip_gate) assertShotReady(pack, args.shot_id);
   const dirs = assetDirs(pack);
   const existing = resolveSelectedVideo(pack, dirs, args.shot_id);
   if (shouldSkipExisting(existing, args.force)) {
+    ok("成片工具", "已有成片，跳过", { shot_id: args.shot_id, file: existing });
     return {
       ok: true,
       skipped: true,
@@ -322,6 +325,7 @@ export async function autodlVideoRef(
 
   const refs = assembleRefs(pack, args.shot_id);
   if (!refs.length) {
+    fail("成片工具", "缺少公网参考图", { shot_id: args.shot_id });
     throw new Error(`${args.shot_id}: 缺少公网参考图`);
   }
   const prompt = compileVideoPrompt(pack, args.shot_id);
@@ -349,6 +353,7 @@ export async function autodlVideoRef(
   const shot = getShot(pack, args.shot_id);
   shot.video_approved = true;
   saveStory(pack);
+  ok("成片工具", "多参考成片完成", { shot_id: args.shot_id, version: versionInfo?.version });
   return {
     ok: true,
     story_id: pack.story_id,
@@ -483,15 +488,18 @@ export async function runChapterPipeline(
   args: { story_id: string; force?: boolean; shot_ids?: string[] },
   signal?: AbortSignal,
 ): Promise<ToolResult> {
+  step("章节流水线", "开始章节成片", { story_id: args.story_id });
   const { pack, path: filePath } = loadStory(args.story_id);
   autoBridgeChapter(pack, filePath);
   const steps = resolveSteps(pack);
   const targets = args.shot_ids?.length
     ? pack.shots.filter((s) => args.shot_ids!.includes(s.shot_id))
     : pack.shots;
+  info("章节流水线", "镜头计划已就绪", { shots: targets.length, steps: steps.join(",") });
   const results: ToolResult[] = [];
   for (const shot of targets) {
     const plan = resolvePlanPath(shot);
+    step("章节流水线", "处理镜头", { shot_id: shot.shot_id, plan });
     if (steps.includes("video") && (plan === "video_ref" || plan === "grid")) {
       results.push(await autodlVideoRef({ story_id: args.story_id, shot_id: shot.shot_id, force: args.force }, signal));
     }
@@ -502,16 +510,23 @@ export async function runChapterPipeline(
       results.push(await runLipsyncShot({ story_id: args.story_id, shot_id: shot.shot_id }, signal));
     }
   }
+  ok("章节流水线", "章节成片流程结束", { story_id: args.story_id, count: results.length });
   return { ok: true, story_id: args.story_id, steps, count: results.length, results };
 }
 
 export async function gateCheckTool(args: { story_id: string; shot_id?: string }): Promise<ToolResult> {
+  step("齐套门闸", "开始检查", { story_id: args.story_id, shot_id: args.shot_id || "(整章)" });
   const { pack } = loadStory(args.story_id);
   if (args.shot_id) {
     const issues = checkShotReady(pack, args.shot_id);
-    return { ok: !issues.some((i) => i.level === "error"), shot_id: args.shot_id, issues };
+    const ready = !issues.some((i) => i.level === "error");
+    if (ready) ok("齐套门闸", "单镜齐套通过", { shot_id: args.shot_id });
+    else warn("齐套门闸", "单镜未齐套", { shot_id: args.shot_id, issues: issues.length });
+    return { ok: ready, shot_id: args.shot_id, issues };
   }
   const chapter = checkChapterReady(pack);
+  if (chapter.ok) ok("齐套门闸", "整章齐套通过", { story_id: args.story_id });
+  else warn("齐套门闸", "整章未齐套", { story_id: args.story_id });
   return { ...chapter, plan: buildChapterPlan(pack) };
 }
 
@@ -565,12 +580,18 @@ export async function selectVersionTool(args: {
 }
 
 export async function promptPreviewTool(args: { story_id: string; shot_id: string }): Promise<ToolResult> {
+  step("提示词预览", "编译 H3 分节提示词", { story_id: args.story_id, shot_id: args.shot_id });
   const { pack } = loadStory(args.story_id);
-  return { ok: true, ...compileH3PromptSections(pack, args.shot_id) };
+  const preview = compileH3PromptSections(pack, args.shot_id);
+  ok("提示词预览", "编译完成", { shot_id: args.shot_id });
+  return { ok: true, ...preview };
 }
 
 export async function zipExportTool(args: { story_id: string }): Promise<ToolResult> {
-  return { ok: true, ...exportStoryZip(args.story_id) };
+  step("工程包", "导出 ZIP", { story_id: args.story_id });
+  const result = exportStoryZip(args.story_id);
+  ok("工程包", "导出完成", { zip_path: result.zip_path });
+  return { ok: true, ...result };
 }
 
 export async function zipImportTool(args: { zip_path: string }): Promise<ToolResult> {

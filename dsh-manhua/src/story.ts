@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { STORIES_DIR, ensureDir, loadConfig } from "./config.js";
+import { REPO_ROOT } from "./paths.js";
+import { ok, warn } from "./zh-log.js";
 
 export type RefImages = Record<string, string>;
 
@@ -113,7 +115,6 @@ export function loadStory(storyId: string): { pack: StoryPack; path: string } {
   if (issues.length) {
     throw new StoryError("story pack invalid:\n- " + issues.join("\n- "));
   }
-  registerStory(pack, p);
   return { pack, path: p };
 }
 
@@ -160,6 +161,17 @@ export function saveStory(pack: StoryPack, filePath?: string): string {
   return p;
 }
 
+function toRepoRelative(filePath: string): string {
+  const abs = path.resolve(filePath);
+  const root = path.resolve(REPO_ROOT);
+  const rel = path.relative(root, abs).replace(/\\/g, "/");
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    warn("故事注册", "路径不在仓库内，仍写入原路径", { path: abs });
+    return abs.replace(/\\/g, "/");
+  }
+  return rel;
+}
+
 function registerStory(pack: StoryPack, filePath: string): void {
   const cfg = loadConfig();
   const indexPath = path.join(cfg.storiesDir, "index.json");
@@ -169,14 +181,16 @@ function registerStory(pack: StoryPack, filePath: string): void {
     idx = JSON.parse(fs.readFileSync(indexPath, "utf8"));
     idx.stories ||= {};
   }
+  const rel = toRepoRelative(filePath);
   idx.stories[pack.story_id] = {
     title: pack.title || pack.story_id,
     chapter_id: pack.chapter_id,
     project_id: pack.project_id,
-    path: filePath.replace(/\\/g, "/"),
+    path: rel,
     logline: (pack.script as { logline?: string })?.logline,
   };
   fs.writeFileSync(indexPath, JSON.stringify(idx, null, 2), "utf8");
+  ok("故事注册", "已写入索引", { story_id: pack.story_id, path: rel });
 }
 
 export function getCharacter(pack: StoryPack, characterId: string) {
