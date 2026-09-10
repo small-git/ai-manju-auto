@@ -1,0 +1,235 @@
+{
+  "story_id": "overtime_system",
+  "chapter_id": "CH01",
+  "project_id": "overtime_system_ch01",
+  "title": "无敌加班成长系统·第一章：猝死边缘的黑洞",
+  "style_lock": "anime_otaku_night",
+  "resolution": "768p横",
+  "video_workflow": "manhua_video_t2v",
+  "steps": [
+    "video"
+  ],
+  "script": {
+    "logline": "运维小刚在漆黑加班夜里濒临猝死，却被屏幕黑洞卷入虚拟世界，并绑定「无敌加班成长系统」。",
+    "synopsis": "第一章发生在同一个雨夜之后的死寂凌晨。互联网公司运维岗的小刚独自守着监控大屏，咖啡见底、心跳紊乱。他以为只是又一次通宵，直到胸口剧痛、视线发黑——屏幕中央裂开漆黑洞口，把他连人带椅子吞进一个由工单、服务器机架与悬浮面板构成的虚拟世界。系统女声宣告绑定成功：每完成一次「加班行为」，体魄与灵魂双属性上涨。本章止于小刚跌落虚拟工位、第一次看见属性面板闪烁，留下「要活命，就继续加班」的荒诞钩子。",
+    "theme": "用荒诞系统反讽过劳；成长即加班，活命即卷自己",
+    "episodes": [
+      {
+        "episode_id": "E01",
+        "title": "第一章 猝死边缘的黑洞",
+        "summary": "加班濒死 → 屏幕黑洞 → 虚拟世界 → 系统绑定。",
+        "beats": [
+          {
+            "beat_id": "B01",
+            "scene_id": "S01",
+            "summary": "漆黑办公室，小刚独自熬夜盯监控，建立人物与压抑氛围。",
+            "emotion": "疲惫麻木"
+          },
+          {
+            "beat_id": "B02",
+            "scene_id": "S01",
+            "summary": "心律不齐发作，胸口剧痛，濒临猝死。",
+            "emotion": "恐惧濒死"
+          },
+          {
+            "beat_id": "B03",
+            "scene_id": "S01",
+            "summary": "屏幕裂开黑洞，强行吞噬小刚。",
+            "emotion": "惊愕失控"
+          },
+          {
+            "beat_id": "B04",
+            "scene_id": "S02",
+            "summary": "坠入虚拟世界，系统绑定「无敌加班成长系统」。",
+            "emotion": "荒诞震撼"
+          },
+          {
+            "beat_id": "B05",
+            "scene_id": "S02",
+            "summary": "属性面板亮起：加班一次，体魄与灵魂提升。第一章收束。",
+            "emotion": "苦笑决意"
+          }
+        ]
+      }
+    ]
+  },
+  "characters": [
+    {
+      "id": "C01",
+      "name": "小刚",
+      "role": "protagonist",
+      "identity_lock": "主角运维小刚：二十五岁左右年轻男性，短黑发略乱，轻度黑眼圈，戴细黑框眼镜，穿深灰连帽卫衣与工牌，瘦高程序员体型；神情长期疲惫却仍强迫自己盯屏。全程保持同一张脸、同一发型、同一身加班便服与日系赛璐璐动漫画风。",
+      "sheet_prompt": "日系赛璐璐动漫角色设定三视图，正面全身、侧面全身、背面全身，浅灰纯色背景。运维小刚：二十五岁男性，短黑发略乱，黑眼圈，细黑框眼镜，深灰连帽卫衣，胸前工牌，瘦高，疲惫表情，统一比例，无文字水印。",
+      "ref_images": {}
+    }
+  ],
+  "environments": [
+    {
+      "id": "ENV01",
+      "name": "深夜空无公司工位",
+      "time_of_day": "late_night",
+      "weather": "indoor",
+      "scene_card": "漆黑深夜的开放式办公室，只剩小刚工位一盏台灯与多块监控屏幕冷光，窗外城市夜景模糊，键盘与咖啡纸杯，压抑安静，横屏16:9日系动漫场景。",
+      "ref_images": {}
+    },
+    {
+      "id": "ENV02",
+      "name": "虚拟加班世界",
+      "time_of_day": "timeless",
+      "weather": "digital",
+      "scene_card": "由半透明工单、服务器机架廊道与悬浮系统面板构成的虚拟空间，深蓝黑底色，青色数据流，脚下是发光网格地面，日系赛璐璐奇幻赛博风格，横屏16:9。",
+      "ref_images": {}
+    }
+  ],
+  "props": [
+    {
+      "id": "P01",
+      "name": "无敌加班成长系统面板",
+      "clue_lock": "半透明青色系统面板，圆角矩形边框，标题「无敌加班成长系统」，属性行体魄/灵魂，始终同一 UI 外形与字体。",
+      "ref_images": {}
+    }
+  ],
+  "shots": [
+    {
+      "shot_id": "CH01_S01_SH01",
+      "episode_id": "E01",
+      "scene_id": "S01",
+      "beat_id": "B01",
+      "environment_id": "ENV01",
+      "character_ids": [
+        "C01"
+      ],
+      "duration": 5,
+      "camera": {
+        "shot_size": "wide",
+        "angle": "eye_level",
+        "move": "slow_push"
+      },
+      "action": "漆黑办公室里，小刚独自坐在工位，多块监控屏冷光映脸，他揉眼继续敲键盘，咖啡已见底。",
+      "emotion": "疲惫麻木",
+      "dialogue": null,
+      "plan_path": "video_ref",
+      "tail_frame_note": "小刚正面微俯盯屏，屏幕光在眼镜上反光",
+      "state": {
+        "location": "公司工位",
+        "holding": "无",
+        "facing": "monitors"
+      }
+    },
+    {
+      "shot_id": "CH01_S01_SH02",
+      "episode_id": "E01",
+      "scene_id": "S01",
+      "beat_id": "B02",
+      "environment_id": "ENV01",
+      "character_ids": [
+        "C01"
+      ],
+      "duration": 5,
+      "camera": {
+        "shot_size": "medium_close",
+        "angle": "slight_low",
+        "move": "handheld_shake"
+      },
+      "action": "小刚突然捂住胸口，呼吸急促，眼镜歪斜，心跳声仿佛擂鼓，眼前监控数字开始重影。",
+      "emotion": "恐惧濒死",
+      "plan_path": "bridge",
+      "bridge_from": "CH01_S01_SH01",
+      "tail_frame_note": "近景：小刚痛苦捂胸，冷汗，屏幕光闪烁",
+      "state": {
+        "location": "公司工位",
+        "holding": "胸口",
+        "facing": "down"
+      }
+    },
+    {
+      "shot_id": "CH01_S01_SH03",
+      "episode_id": "E01",
+      "scene_id": "S01",
+      "beat_id": "B03",
+      "environment_id": "ENV01",
+      "character_ids": [
+        "C01"
+      ],
+      "duration": 5,
+      "camera": {
+        "shot_size": "medium",
+        "angle": "dramatic",
+        "move": "fast_pull"
+      },
+      "action": "主屏幕中央裂开漆黑漩涡状黑洞，数据流被吸入，强风卷起纸张，小刚连人带椅子被拽向屏幕。",
+      "emotion": "惊愕失控",
+      "plan_path": "bridge",
+      "bridge_from": "CH01_S01_SH02",
+      "tail_frame_note": "黑洞占据画面中心，小刚伸手挣扎，身体半入屏",
+      "state": {
+        "location": "屏幕黑洞边缘",
+        "holding": "椅背",
+        "facing": "screen"
+      }
+    },
+    {
+      "shot_id": "CH01_S02_SH04",
+      "episode_id": "E01",
+      "scene_id": "S02",
+      "beat_id": "B04",
+      "environment_id": "ENV02",
+      "character_ids": [
+        "C01"
+      ],
+      "duration": 5,
+      "camera": {
+        "shot_size": "wide",
+        "angle": "high",
+        "move": "orbit"
+      },
+      "prop_ids": [
+        "P01"
+      ],
+      "action": "小刚坠落在发光网格地面，四周是服务器机架廊道与悬浮工单；头顶响起系统女声，半透明面板弹出绑定成功。",
+      "emotion": "荒诞震撼",
+      "dialogue": "叮——无敌加班成长系统已绑定。",
+      "plan_path": "lipsync",
+      "needs_lipsync": true,
+      "bridge_from": "CH01_S01_SH03",
+      "tail_frame_note": "小刚跪地抬头，系统面板悬于眼前",
+      "state": {
+        "location": "虚拟世界",
+        "holding": "地面",
+        "facing": "system_panel"
+      }
+    },
+    {
+      "shot_id": "CH01_S02_SH05",
+      "episode_id": "E01",
+      "scene_id": "S02",
+      "beat_id": "B05",
+      "environment_id": "ENV02",
+      "character_ids": [
+        "C01"
+      ],
+      "duration": 5,
+      "camera": {
+        "shot_size": "medium_close",
+        "angle": "eye_level",
+        "move": "slow_push"
+      },
+      "prop_ids": [
+        "P01"
+      ],
+      "action": "系统面板显示：加班一次，体魄+，灵魂+。小刚苦笑着扶镜起身，眼神从崩溃转为奇异的决意。",
+      "emotion": "苦笑决意",
+      "dialogue": "要活命……就继续加班？",
+      "plan_path": "lipsync",
+      "needs_lipsync": true,
+      "bridge_from": "CH01_S02_SH04",
+      "tail_frame_note": "近景：面板数字跳动，小刚抬眼，第一章定格",
+      "state": {
+        "location": "虚拟世界",
+        "holding": "无",
+        "facing": "forward",
+        "system": "bound"
+      }
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+# -*- coding: utf-8 -*-
+"""Story isolation: one story_id = one script universe."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from story import StoryError, validate_story_pack
+
+ROOT = Path(__file__).resolve().parents[1]
+STORIES_DIR = ROOT / "stories"
+INDEX_PATH = STORIES_DIR / "index.json"
+
+
+def load_index() -> dict[str, Any]:
+    if not INDEX_PATH.exists():
+        return {"stories": {}}
+    return json.loads(INDEX_PATH.read_text(encoding="utf-8"))
+
+
+def save_index(data: dict[str, Any]) -> None:
+    STORIES_DIR.mkdir(parents=True, exist_ok=True)
+    INDEX_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def register_story(pack: dict[str, Any], pack_path: Path | None = None) -> None:
+    story_id = pack.get("story_id")
+    if not story_id:
+        raise StoryError("pack missing story_id")
+    idx = load_index()
+    stories = idx.setdefault("stories", {})
+    stories[story_id] = {
+        "title": pack.get("title") or story_id,
+        "chapter_id": pack.get("chapter_id"),
+        "project_id": pack.get("project_id"),
+        "path": str(pack_path.as_posix()) if pack_path else None,
+        "logline": (pack.get("script") or {}).get("logline"),
+    }
+    save_index(idx)
+
+
+def resolve_story_pack(story_id: str, pack_path: Path | None = None) -> tuple[dict[str, Any], Path]:
+    """Load a story pack only by explicit story_id (and optional path)."""
+    if not story_id or not str(story_id).strip():
+        raise StoryError("必须显式指定 --story <story_id>，禁止无引用跨故事生成")
+
+    path: Path | None = pack_path
+    if path is None:
+        idx = load_index()
+        meta = (idx.get("stories") or {}).get(story_id)
+        if not meta or not meta.get("path"):
+            # fallback: stories/<story_id>/story.json or ch*.json
+            cand = STORIES_DIR / story_id / "story.json"
+            if cand.exists():
+                path = cand
+            else:
+                raise StoryError(
+                    f"故事未注册且找不到默认文件: {story_id}。"
+                    f"请先把剧本放到 stories/{story_id}/story.json 并校验注册。"
+                )
+        else:
+            path = Path(meta["path"])
+            if not path.is_absolute():
+                path = ROOT / path
+
+    if not path.exists():
+        raise StoryError(f"story pack not found: {path}")
+
+    pack = json.loads(path.read_text(encoding="utf-8"))
+    if pack.get("story_id") != story_id:
+        raise StoryError(
+            f"故事引用不匹配：命令 --story={story_id}，文件 story_id={pack.get('story_id')}。"
+            "禁止用 A 故事引用生成 B 故事成片。"
+        )
+    issues = validate_story_pack(pack)
+    if issues:
+        raise StoryError("story pack invalid:\n- " + "\n- ".join(issues))
+    return pack, path
+
+
+def assert_story_bound_for_video(pack: dict[str, Any], story_id: str | None) -> None:
+    """Hard gate: video steps require an explicit story reference."""
+    if not story_id:
+        raise StoryError(
+            "生成视频前必须引用故事：请加 --story <story_id>。"
+            "每个故事是独立剧本宇宙，避免剧情串戏。"
+        )
+    if pack.get("story_id") != story_id:
+        raise StoryError(
+            f"拒绝成片：引用故事 {story_id} 与剧本 story_id={pack.get('story_id')} 不一致"
+        )

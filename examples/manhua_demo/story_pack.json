@@ -1,0 +1,154 @@
+{
+  "story_id": "manhua_demo",
+  "chapter_id": "CH01",
+  "project_id": "linzhou_e01",
+  "title": "竹简雨桥",
+  "style_lock": "manhua_ink",
+  "resolution": "768p横",
+  "video_workflow": "manhua_video_ref",
+  "steps": ["video", "bridge"],
+  "script": {
+    "logline": "少年林舟雨夜立于江南石桥，手握竹简，决意启程追查失踪的师门秘录。",
+    "synopsis": "夜雨江南。十七岁的林舟立于青石桥心，竹简藏着师门残页。远处灯笼暖光摇曳，河面映出他左眉浅疤。他先环顾空桥与雨幕，再侧身望向下游来路，最后缓缓转头、衣袂被风掀起——心中已定：天亮前必须离开这座城。本集只写启程前的静夜一刻，不做打斗，强调人物身份稳定与镜间情绪递进。",
+    "theme": "决意与启程",
+    "episodes": [
+      {
+        "episode_id": "E01",
+        "title": "雨桥竹简",
+        "summary": "林舟在夜雨石桥完成从观望到启程决意的三拍情绪。",
+        "beats": [
+          {
+            "beat_id": "B01",
+            "scene_id": "S01",
+            "summary": "空桥雨幕，林舟入画，建立人物与环境。",
+            "emotion": "沉静"
+          },
+          {
+            "beat_id": "B02",
+            "scene_id": "S01",
+            "summary": "侧身望河，竹简贴身，察觉下游动静。",
+            "emotion": "警惕"
+          },
+          {
+            "beat_id": "B03",
+            "scene_id": "S01",
+            "summary": "转头决意，衣袂风动，灯笼光微闪，镜头推进。",
+            "emotion": "决意"
+          }
+        ]
+      }
+    ]
+  },
+  "characters": [
+    {
+      "id": "C01",
+      "name": "林舟",
+      "role": "protagonist",
+      "identity_lock": "主角林舟：十七岁少年，黑发束高马尾，左眉一道浅疤，青灰色交领短打，腰系玄色布带，手持竹简；五官清俊，眼神沉静。全程保持同一张脸、同一发型、同一套服装与水墨漫剧画风。",
+      "sheet_prompt": "角色设定三视图，正面全身、侧面全身、背面全身，同一人物并排展示，纯色浅灰背景。主角林舟：十七岁少年，黑发束高马尾，左眉一道浅疤，青灰色交领短打，腰系玄色布带，手持竹简，五官清俊，眼神沉静。全身比例统一，无文字水印。",
+      "ref_images": {
+        "sheet": "https://litter.catbox.moe/p713m6.png"
+      }
+    }
+  ],
+  "environments": [
+    {
+      "id": "ENV01",
+      "name": "江南石桥",
+      "time_of_day": "night_rain",
+      "weather": "rain",
+      "scene_card": "夜雨中的江南石桥，青石湿亮反光，远处灯笼晕开暖光，河面细雨涟漪，纵深构图，横屏16:9电影感，水墨漫剧场景，禁止真人摄影。",
+      "ref_images": {
+        "establishing": "https://litter.catbox.moe/fyle4p.png"
+      }
+    }
+  ],
+  "props": [
+    {
+      "id": "P01",
+      "name": "竹简",
+      "clue_lock": "青竹简一册，玄色布带束腰，简面浅刻暗纹，始终同一外形。",
+      "ref_images": {}
+    }
+  ],
+  "shots": [
+    {
+      "shot_id": "E01_S01_SH01",
+      "episode_id": "E01",
+      "scene_id": "S01",
+      "beat_id": "B01",
+      "environment_id": "ENV01",
+      "character_ids": ["C01"],
+      "prop_ids": ["P01"],
+      "duration": 5,
+      "camera": {
+        "shot_size": "wide",
+        "angle": "eye_level",
+        "move": "slow_reveal"
+      },
+      "action": "雨幕中石桥全貌展开，林舟自桥左侧缓步走入桥心，竹简贴身，停步环顾空桥。",
+      "emotion": "沉静",
+      "plan_path": "video_ref",
+      "still_url": "https://litter.catbox.moe/fyle4p.png",
+      "tail_frame_note": "林舟立于桥心，正面微侧，面向镜头偏右，灯笼光在远景左侧",
+      "state": {
+        "wardrobe": "青灰交领短打",
+        "holding": "竹简",
+        "facing": "slight_right"
+      }
+    },
+    {
+      "shot_id": "E01_S01_SH02",
+      "episode_id": "E01",
+      "scene_id": "S01",
+      "beat_id": "B02",
+      "environment_id": "ENV01",
+      "character_ids": ["C01"],
+      "prop_ids": ["P01"],
+      "duration": 5,
+      "camera": {
+        "shot_size": "medium",
+        "angle": "slight_low",
+        "move": "static"
+      },
+      "action": "林舟侧身望向河面下游，眼神微收，竹简夹在腋下，衣袂被雨风轻轻掀动。",
+      "emotion": "警惕",
+      "plan_path": "bridge",
+      "still_url": "https://litter.catbox.moe/fyle4p.png",
+      "bridge_from": "E01_S01_SH01",
+      "tail_frame_note": "林舟侧脸朝向画面右侧河面，灯笼光在左侧",
+      "state": {
+        "wardrobe": "青灰交领短打",
+        "holding": "竹简",
+        "facing": "right_river"
+      }
+    },
+    {
+      "shot_id": "E01_S01_SH03",
+      "episode_id": "E01",
+      "scene_id": "S01",
+      "beat_id": "B03",
+      "environment_id": "ENV01",
+      "character_ids": ["C01"],
+      "prop_ids": ["P01"],
+      "duration": 5,
+      "camera": {
+        "shot_size": "medium_close",
+        "angle": "slight_low",
+        "move": "slow_push"
+      },
+      "action": "林舟缓缓转头望向河面，衣袂轻动，灯笼暖光微闪，镜头缓慢推进，神情由警惕转为决意。",
+      "emotion": "决意",
+      "plan_path": "bridge",
+      "still_url": "https://litter.catbox.moe/fyle4p.png",
+      "bridge_from": "E01_S01_SH02",
+      "tail_frame_note": "近景侧脸，目光坚定看向右侧河面，雨丝前景",
+      "state": {
+        "wardrobe": "青灰交领短打",
+        "holding": "竹简",
+        "facing": "right_river",
+        "intent": "depart_before_dawn"
+      }
+    }
+  ]
+}

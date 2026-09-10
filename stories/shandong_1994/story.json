@@ -1,0 +1,350 @@
+{
+  "story_id": "shandong_1994",
+  "chapter_id": "CH01",
+  "project_id": "shandong_1994",
+  "title": "山东小孩·第一步",
+  "style_lock": "manhua_ink",
+  "resolution": "768p横",
+  "video_workflow": "manhua_video_ref",
+  "steps": [
+    "video"
+  ],
+  "script": {
+    "logline": "一个出生在济宁农村的安静男孩，在村小学撤并的意外变故中，靠母亲悄悄攒下的车费迈出走向更大世界的第一步。",
+    "synopsis": "1994年，山东济宁农村，平凡出生在一个并不富裕却始终有烟火气的家庭。父亲种地并在农闲时外出做零工，母亲操持家务、下地帮忙，还靠卖鸡蛋和接零活悄悄攒钱。平凡从小安静内向，和邻居孩子在土路上玩耍，跟父亲看麦苗、捡玉米棒，也在母亲身边度过冬日清晨。到了上学年纪，他背着父亲买回的蓝色书包走进村小学，学会写自己的名字。第一个学期末，村小学突然通知撤并，平凡下学期必须去镇上读书，来回车费成为家里的负担。父亲犹豫不决时，母亲从灶台后的旧铁盒里拿出攒了几个月的零钱，坚持让孩子继续读书。第二天清晨，平凡背着蓝色书包走出村口，第一次真正离开村庄。",
+    "theme": "普通家庭用沉默而坚定的爱，为孩子打开通往更大世界的第一扇门。",
+    "episodes": [
+      {
+        "episode_id": "EP01",
+        "title": "走出村口",
+        "summary": "从农村日常与平凡的童年写起，展现他进入村小学后的平静生活，并以学校撤并和母亲拿出积蓄为转折，落在他背着书包走向镇上的清晨。",
+        "beats": [
+          {
+            "beat_id": "B01",
+            "scene_id": "SC01",
+            "summary": "济宁农村的院子里，煤炉冒着热气，母亲忙着做饭，平凡安静地坐在门槛边听蝉声，父亲从地里回来。",
+            "emotion": "温暖、平静"
+          },
+          {
+            "beat_id": "B02",
+            "scene_id": "SC02",
+            "summary": "平凡跟着父亲走在麦田边，父亲查看麦苗，平凡蹲在田埂上捡起一颗石子，表现出安静而细致的性格。",
+            "emotion": "朴素、亲近"
+          },
+          {
+            "beat_id": "B03",
+            "scene_id": "SC03",
+            "summary": "开学日，母亲替平凡整理本子和铅笔，平凡背上蓝色书包走进黄土地操场，在老师点名时小声回答“到”。",
+            "emotion": "拘谨、期待"
+          },
+          {
+            "beat_id": "B04",
+            "scene_id": "SC04",
+            "summary": "第一个学期末，村小学教室里传出撤并通知，平凡听见下学期要去镇上读书，放学后独自站在校门口。",
+            "emotion": "茫然、不安"
+          },
+          {
+            "beat_id": "B05",
+            "scene_id": "SC05",
+            "summary": "夜里灶台旁，父亲沉默地计算车费，母亲从旧铁盒里取出几个月来卖鸡蛋和接零活攒下的零钱，坚持让平凡继续读书。",
+            "emotion": "沉重、坚定"
+          },
+          {
+            "beat_id": "B06",
+            "scene_id": "SC06",
+            "summary": "第二天清晨，平凡背着蓝色书包走出村口，母亲站在院门边目送他，土路向远处延伸，通往镇上的车站。",
+            "emotion": "不舍、勇敢、希望"
+          }
+        ]
+      }
+    ]
+  },
+  "characters": [
+    {
+      "id": "C01",
+      "name": "平凡",
+      "role": "主角",
+      "identity_lock": "1994年山东济宁农村男孩，约7岁，圆脸，眉毛较细，黑色大眼睛，鼻梁平直，嘴唇偏薄，肤色自然偏麦色；黑色短发，发梢略显凌乱，额前有几缕碎发；身材瘦小；固定穿洗旧的灰蓝色棉布上衣、深蓝色长裤、旧布鞋，背蓝色帆布书包。性格安静内向，见生人时习惯低头或躲到母亲身后。所有分镜中保持同一年龄、五官、发型与服装识别特征，不改变为其他人物或年龄阶段。",
+      "sheet_prompt": "1994年中国山东济宁农村，7岁安静男孩，圆脸，细眉，黑色大眼睛，平直鼻梁，薄嘴唇，麦色皮肤，黑色凌乱短发，瘦小身材，灰蓝色旧棉布上衣，深蓝色长裤，旧布鞋，蓝色帆布书包，水墨漫画风，生活化写实比例，manhua_ink",
+      "approved": true,
+      "ref_images": {
+        "sheet": "https://litter.catbox.moe/qsng9x.png"
+      }
+    },
+    {
+      "id": "C02",
+      "name": "平凡的母亲",
+      "role": "关键配角",
+      "identity_lock": "1994年山东济宁农村中年女性，约32岁， oval脸型，眉眼温和，黑色眼睛，鼻梁小巧，嘴角自然下垂，肤色偏黄；黑色长发在脑后低低束成发髻，鬓角有少量碎发；身材朴实结实；固定穿深色小碎花棉袄、黑色宽腿裤、黑色布鞋，做家务时外系深蓝色围裙。性格勤劳、克制、温柔而坚定。所有分镜中保持同一五官、发型与服装识别特征。",
+      "sheet_prompt": "1994年中国山东济宁农村母亲，32岁，温和椭圆脸，黑色眼睛，小巧鼻梁，黑色长发低发髻，朴实结实体型，深色小碎花棉袄，黑色宽腿裤，黑色布鞋，深蓝色围裙，水墨漫画风，manhua_ink",
+      "approved": true,
+      "ref_images": {
+        "sheet": "https://litter.catbox.moe/nbn4ir.png"
+      }
+    },
+    {
+      "id": "C03",
+      "name": "平凡的父亲",
+      "role": "关键配角",
+      "identity_lock": "1994年山东济宁农村中年男性，约35岁，方脸，浓眉，深黑色眼睛，鼻梁较宽，嘴唇偏厚，肤色黝黑，脸颊有日晒痕迹；黑色短发，发际线略高；身材结实偏瘦，肩膀宽；固定穿褪色蓝色工装外套、灰色粗布裤、黑色布鞋，干农活时袖口挽起。性格少言、勤劳、谨慎，常以沉默表达压力。所有分镜中保持同一五官、发型与服装识别特征。",
+      "sheet_prompt": "1994年中国山东济宁农村父亲，35岁，方脸，浓眉，深黑眼睛，宽鼻梁，黝黑皮肤，黑色短发，发际线略高，结实偏瘦体型，褪色蓝色工装外套，灰色粗布裤，黑色布鞋，水墨漫画风，manhua_ink",
+      "approved": true,
+      "ref_images": {
+        "sheet": "https://litter.catbox.moe/049pvk.png"
+      }
+    },
+    {
+      "id": "C04",
+      "name": "村小学老师",
+      "role": "配角",
+      "identity_lock": "1994年山东济宁农村小学女教师，约28岁，鹅蛋脸，细眉，黑色眼睛，鼻梁秀气，黑色齐耳短发，身材清瘦；固定穿米白色衬衫、深灰色针织背心、深色长裙和黑色布鞋，手持粉笔或点名册。气质耐心朴素。所有分镜中保持同一五官、发型与服装识别特征。",
+      "sheet_prompt": "1994年山东济宁农村小学女教师，28岁，鹅蛋脸，细眉，黑色齐耳短发，米白衬衫，深灰针织背心，深色长裙，黑色布鞋，手持粉笔和点名册，水墨漫画风，manhua_ink",
+      "approved": true,
+      "ref_images": {
+        "sheet": "https://litter.catbox.moe/mv1gce.png"
+      }
+    }
+  ],
+  "environments": [
+    {
+      "id": "E01",
+      "name": "平凡家院与灶房",
+      "scene_card": "山东济宁农村土坯院落，低矮砖房，灶房门口有煤炉和黑色铁锅，墙边堆着玉米秸秆，门槛磨损，院中摆着旧木凳，生活痕迹浓厚。",
+      "time_of_day": "傍晚",
+      "weather": "晴朗闷热，空气中有夏蝉声",
+      "ref_images": {
+        "establishing": "https://litter.catbox.moe/zd3n56.png"
+      }
+    },
+    {
+      "id": "E02",
+      "name": "村边麦田",
+      "scene_card": "济宁农村村边土路与麦田，田埂狭窄，远处有稀疏杨树和低矮村屋，泥土路上留有车辙，整体开阔而朴素。",
+      "time_of_day": "春日下午",
+      "weather": "晴天，微风，阳光柔和",
+      "ref_images": {
+        "establishing": "https://litter.catbox.moe/zd3n56.png"
+      }
+    },
+    {
+      "id": "E03",
+      "name": "村小学教室与操场",
+      "scene_card": "1994年农村小学，低矮砖瓦校舍，黄土地操场，黑板边缘掉漆，木课桌排列整齐，窗框陈旧，墙上有手绘课程表。",
+      "time_of_day": "上午",
+      "weather": "晴朗，阳光从旧窗户斜射进教室",
+      "ref_images": {
+        "establishing": "https://litter.catbox.moe/zd3n56.png"
+      }
+    },
+    {
+      "id": "E04",
+      "name": "夜间灶房",
+      "scene_card": "狭窄灶房，煤炉余火泛红，墙面被烟熏成灰黑色，灶台后藏着一个旧铁盒，桌面上有搪瓷碗和几张零钱，光线主要来自煤炉与昏黄灯泡。",
+      "time_of_day": "深夜",
+      "weather": "屋外寒凉，无雨",
+      "ref_images": {
+        "establishing": "https://litter.catbox.moe/zd3n56.png"
+      }
+    },
+    {
+      "id": "E05",
+      "name": "村口土路",
+      "scene_card": "山东农村村口，土路从院落之间延伸到远方，路旁有老槐树、电线杆和低矮土墙，远处隐约可见通往镇上的公路与早班车方向。",
+      "time_of_day": "清晨",
+      "weather": "秋日薄雾，微凉，天色刚亮",
+      "ref_images": {
+        "establishing": "https://litter.catbox.moe/zd3n56.png"
+      }
+    }
+  ],
+  "props": [
+    {
+      "id": "P01",
+      "name": "蓝色帆布书包",
+      "clue_lock": "1994年农村孩子使用的旧式蓝色帆布双肩书包，边角略磨白，正面有一块浅色布补丁，书包带稍宽，始终作为平凡走向学校和村口的重要视觉线索。",
+      "ref_images": {}
+    },
+    {
+      "id": "P02",
+      "name": "旧铁盒与零钱",
+      "clue_lock": "灶台后藏着的椭圆形旧铁盒，深绿色掉漆，盒盖有轻微凹痕，里面是一沓一角、五角和一元纸币及少量硬币，代表母亲数月积攒的车费。",
+      "ref_images": {}
+    },
+    {
+      "id": "P03",
+      "name": "点名册与粉笔",
+      "clue_lock": "村小学老师使用的褐色硬皮点名册和短短的白色粉笔，用于表现平凡第一次在课堂上小声回答“到”。",
+      "ref_images": {}
+    }
+  ],
+  "shots": [
+    {
+      "shot_id": "SH01",
+      "episode_id": "EP01",
+      "scene_id": "SC01",
+      "beat_id": "B01",
+      "environment_id": "E01",
+      "character_ids": [
+        "C01",
+        "C02",
+        "C03"
+      ],
+      "prop_ids": [],
+      "duration": 7,
+      "camera": {
+        "shot_size": "全景",
+        "angle": "平视",
+        "move": "缓慢横向摇摄，从煤炉和灶房摇到院中母子与归来的父亲"
+      },
+      "action": "煤炉冒出白色热气，母亲在灶房门口忙碌，平凡穿着固定的灰蓝色旧棉布上衣和深蓝色长裤坐在门槛边，双手放在膝上安静听蝉，父亲穿固定的褪色蓝色工装外套从院门走进来，放下农具后看向孩子。",
+      "dialogue": "母亲：饭快好了。父亲：嗯，地里今天还行。",
+      "emotion": "温暖、平静",
+      "plan_path": "video_ref",
+      "still_approved": true,
+      "needs_lipsync": true,
+      "still_url": "https://litter.catbox.moe/zd3n56.png",
+      "video_approved": true
+    },
+    {
+      "shot_id": "SH02",
+      "episode_id": "EP01",
+      "scene_id": "SC02",
+      "beat_id": "B02",
+      "environment_id": "E02",
+      "character_ids": [
+        "C01",
+        "C03"
+      ],
+      "prop_ids": [],
+      "duration": 6,
+      "camera": {
+        "shot_size": "中远景",
+        "angle": "低机位平视",
+        "move": "跟拍父子沿田埂缓慢前行，最后推近到平凡蹲下捡石子"
+      },
+      "action": "父亲穿固定的褪色蓝色工装外套，弯腰查看麦苗；平凡穿固定的灰蓝色旧棉布上衣和深蓝色长裤，跟在父亲身边，蹲下捡起一颗圆石子，抬头认真看父亲的动作。",
+      "dialogue": "父亲：麦苗长得齐，秋天才有收成。平凡：嗯。",
+      "emotion": "朴素、亲近",
+      "plan_path": "video_ref",
+      "still_approved": true,
+      "needs_lipsync": true,
+      "still_url": "https://litter.catbox.moe/rm0tkk.png",
+      "video_approved": true
+    },
+    {
+      "shot_id": "SH03",
+      "episode_id": "EP01",
+      "scene_id": "SC03",
+      "beat_id": "B03",
+      "environment_id": "E03",
+      "character_ids": [
+        "C01",
+        "C02",
+        "C04"
+      ],
+      "prop_ids": [
+        "P01",
+        "P03"
+      ],
+      "duration": 8,
+      "camera": {
+        "shot_size": "中景转近景",
+        "angle": "平视",
+        "move": "从母亲整理书包的手部特写切到平凡背上书包，再推近老师点名时平凡的脸"
+      },
+      "action": "母亲穿固定的深色小碎花棉袄和深蓝色围裙，将本子、铅笔和橡皮装进蓝色帆布书包；平凡保持固定的黑色凌乱短发和灰蓝色旧棉布上衣，背上书包走进黄土地操场；老师翻开点名册，平凡低头后抬眼，小声举手回应。",
+      "dialogue": "老师：平凡？平凡：到。",
+      "emotion": "拘谨、期待",
+      "plan_path": "video_ref",
+      "still_approved": true,
+      "needs_lipsync": true,
+      "still_url": "https://litter.catbox.moe/gy46aa.png",
+      "video_approved": true
+    },
+    {
+      "shot_id": "SH04",
+      "episode_id": "EP01",
+      "scene_id": "SC04",
+      "beat_id": "B04",
+      "environment_id": "E03",
+      "character_ids": [
+        "C01",
+        "C04"
+      ],
+      "prop_ids": [
+        "P03"
+      ],
+      "duration": 7,
+      "camera": {
+        "shot_size": "中远景",
+        "angle": "略高角度",
+        "move": "从黑板上的通知缓慢下摇到平凡的侧脸，再拉远至空旷校门"
+      },
+      "action": "老师站在黑板前宣读村小学撤并通知，平凡保持固定的五官、黑色短发、灰蓝色上衣和深蓝色长裤，坐在木课桌旁握紧铅笔；放学后他背着蓝色帆布书包独自站在校门口，望向通往镇上的土路。",
+      "dialogue": "老师：下学期，大家要到镇上去读书。平凡：镇上……要坐车吗？",
+      "emotion": "茫然、不安",
+      "plan_path": "video_ref",
+      "still_approved": true,
+      "needs_lipsync": true,
+      "still_url": "https://litter.catbox.moe/8sahq1.png",
+      "video_approved": true
+    },
+    {
+      "shot_id": "SH05",
+      "episode_id": "EP01",
+      "scene_id": "SC05",
+      "beat_id": "B05",
+      "environment_id": "E04",
+      "character_ids": [
+        "C02",
+        "C03",
+        "C01"
+      ],
+      "prop_ids": [
+        "P02"
+      ],
+      "duration": 8,
+      "camera": {
+        "shot_size": "近景",
+        "angle": "平视略低角度",
+        "move": "先特写父亲手中的零钱，再跟随母亲从灶台后取出旧铁盒，最后停在母亲坚定的眼神上"
+      },
+      "action": "昏黄灯光下，父亲穿固定的褪色蓝色工装外套，低头将几枚零钱摊在桌面上；母亲穿固定的深色小碎花棉袄和深蓝色围裙，从灶台后取出旧铁盒，打开后露出攒下的纸币和硬币；平凡穿固定的灰蓝色上衣站在门边，安静看着母亲。",
+      "dialogue": "父亲：来回坐车，又是一笔钱。母亲：孩子先把书读下去。",
+      "emotion": "沉重、坚定",
+      "plan_path": "video_ref",
+      "still_approved": true,
+      "needs_lipsync": true,
+      "still_url": "https://litter.catbox.moe/4jo179.png",
+      "video_approved": true
+    },
+    {
+      "shot_id": "SH06",
+      "episode_id": "EP01",
+      "scene_id": "SC06",
+      "beat_id": "B06",
+      "environment_id": "E05",
+      "character_ids": [
+        "C01",
+        "C02"
+      ],
+      "prop_ids": [
+        "P01"
+      ],
+      "duration": 8,
+      "camera": {
+        "shot_size": "远景转背影中景",
+        "angle": "低机位平视",
+        "move": "固定远景起幅，随后缓慢推近平凡背影，再向远方土路拉焦"
+      },
+      "action": "薄雾中的清晨，平凡保持固定的圆脸、黑色凌乱短发、灰蓝色旧棉布上衣、深蓝色长裤和旧布鞋，背着蓝色帆布书包走出村口；母亲保持固定的低发髻、深色小碎花棉袄和深蓝色围裙，站在院门边目送；平凡走到土路转弯处回头一次，随后继续向镇上方向前行。",
+      "dialogue": "母亲：路上慢点，别把书包弄脏了。平凡：知道了，妈。",
+      "emotion": "不舍、勇敢、希望",
+      "plan_path": "video_ref",
+      "still_approved": true,
+      "needs_lipsync": true,
+      "still_url": "https://litter.catbox.moe/ooeskb.png",
+      "video_approved": true
+    }
+  ]
+}

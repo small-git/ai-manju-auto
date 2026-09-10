@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>漫剧工作台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主内容</a>
+    <div class="layout">
+      <aside class="sidebar" aria-label="工作台导航">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div>
+            <h1>漫剧工作台</h1>
+            <p>分层生产台</p>
+          </div>
+        </div>
+
+        <div class="story-switch card-mini">
+          <label>当前故事集</label>
+          <div class="select-wrap">
+            <select id="global-story"></select>
+          </div>
+          <button type="button" class="btn small" id="btn-bind-story">进入故事</button>
+        </div>
+
+        <nav class="nav" id="nav">
+          <button type="button" class="nav-item active" data-mod="keys">密钥管理</button>
+          <button type="button" class="nav-item" data-mod="writing">文案工作室</button>
+          <button type="button" class="nav-item" data-mod="stories">故事管理</button>
+          <button type="button" class="nav-item" data-mod="sheets">定妆管理</button>
+          <button type="button" class="nav-item" data-mod="props">道具管理</button>
+          <button type="button" class="nav-item" data-mod="stills">分镜管理</button>
+          <button type="button" class="nav-item" data-mod="plan">计划预审</button>
+          <button type="button" class="nav-item" data-mod="videos">成片管理</button>
+          <button type="button" class="nav-item" data-mod="canvas">画布编排</button>
+          <button type="button" class="nav-item" data-mod="export">出片 / 交付</button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <div id="summary" class="summary"></div>
+          <p class="hint">一故事一剧本。齐套灯亮才可成片。</p>
+        </div>
+      </aside>
+
+      <main class="main" id="main-content">
+        <header class="topbar">
+          <div>
+            <h2 id="mod-title">密钥管理</h2>
+            <p id="mod-desc">管理成片 / 定妆 / 静帧密钥与默认参数</p>
+          </div>
+          <div id="top-story" class="top-story" aria-live="polite">未选择故事集</div>
+        </header>
+
+        <section class="mod active" id="mod-keys">
+          <div class="grid-3" id="keyCards"></div>
+          <div class="card">
+            <h3>API 地址 / 中转站</h3>
+            <p class="muted" style="margin:0 0 14px">可填官方地址或自建中转；保存后立即生效。留空再保存则恢复默认。</p>
+            <div class="form-grid">
+              <div class="form-row full">
+                <label>AutoDL 接口地址</label>
+                <input id="setting-autodl-url" placeholder="https://autodl.art" spellcheck="false" />
+              </div>
+              <div class="form-row full">
+                <label>OpenAI 接口地址（定妆 / 配音 / 拆剧 / 文案）</label>
+                <input id="setting-openai-url" placeholder="LinkAPI：https://linkapi.ai/v1" spellcheck="false" />
+              </div>
+              <div class="form-row full">
+                <label>Gemini 接口地址（分镜静帧，原生 v1beta）</label>
+                <input id="setting-gemini-url" placeholder="LinkAPI：https://linkapi.ai/v1beta 或 https://linkapi.ai" spellcheck="false" />
+              </div>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn" id="btn-save-api-urls">保存接口地址</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>模型管理</h3>
+            <p class="muted" style="margin:0 0 14px">LinkAPI：文案用聊天模型；定妆必须填生图模型（如 gpt-image-2），不要填 luna/聊天名。分组无通道时会报 model_not_found。</p>
+            <div class="form-grid">
+              <div class="form-row">
+                <label>OpenAI 定妆模型（生图）</label>
+                <input id="setting-openai-image-model" placeholder="gpt-image-2" spellcheck="false" />
+              </div>
+              <div class="form-row">
+                <label>OpenAI 文案 / 拆剧模型</label>
+                <input id="setting-openai-chat-model" placeholder="gpt-5.5 或 gpt-5.6-sol" spellcheck="false" />
+              </div>
+              <div class="form-row">
+                <label>Gemini 静帧模型</label>
+                <input id="setting-gemini-image-model" placeholder="需分组开通的 Gemini 生图模型" spellcheck="false" />
+              </div>
+              <div class="form-row">
+                <label>AutoDL 成片工作流编号</label>
+                <input id="setting-video-workflow" placeholder="minimax_h3_lightx2v_v5" spellcheck="false" />
+              </div>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn" id="btn-save-models">保存模型</button>
+              <button type="button" class="btn ghost" id="btn-probe-all">全部测试连通</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>默认参数 / 服务商</h3>
+            <div class="form-grid">
+              <div class="form-row">
+                <label>默认分辨率</label>
+                <input id="setting-resolution" placeholder="768p横" />
+              </div>
+              <div class="form-row">
+                <label>公网资源前缀</label>
+                <input id="setting-cdn" placeholder="https://cdn.example.com" />
+              </div>
+              <div class="form-row">
+                <label>定妆服务商</label>
+                <div class="select-wrap">
+                  <select id="provider-sheet">
+                    <option value="openai">OpenAI（定妆）</option>
+                    <option value="gemini">Gemini（静帧模型）</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <label>静帧服务商</label>
+                <div class="select-wrap">
+                  <select id="provider-still">
+                    <option value="gemini">Gemini（静帧）</option>
+                    <option value="openai">OpenAI（生图）</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn" id="btn-save-settings">保存参数</button>
+              <button type="button" class="btn ghost" id="btn-save-providers">保存服务商</button>
+              <button type="button" class="btn ghost" id="btn-refresh-keys">刷新密钥状态</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mod" id="mod-writing">
+          <div class="card">
+            <h3>文案工作室</h3>
+            <p class="muted" style="margin:0 0 14px">粘贴主线/小说 → 续写或加反转 → 采用正文 → 写回剧本或拆下一集分镜。始终绑定同一个故事。</p>
+            <div class="form-grid">
+              <div class="form-row">
+                <label>故事 ID</label>
+                <input id="writing-story-id" placeholder="与侧栏一致，或新建如 overtime_ch02" spellcheck="false" />
+              </div>
+              <div class="form-row">
+                <label>标题</label>
+                <input id="writing-title" placeholder="可选" />
+              </div>
+              <div class="form-row full">
+                <label>一句话主线</label>
+                <input id="writing-logline" placeholder="用一句话概括本故事核心冲突" />
+              </div>
+              <div class="form-row full">
+                <label>正典正文（主线 / 小说）</label>
+                <textarea id="writing-source" rows="10" placeholder="在此粘贴小说或主线大纲…"></textarea>
+              </div>
+              <div class="form-row full">
+                <label>本轮指示（反转点 / 续写方向 / 改写要求）</label>
+                <textarea id="writing-instruction" rows="3" placeholder="例：加一个师兄其实是卧底的反转；或续写离开石桥后的遭遇"></textarea>
+              </div>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn ghost" id="btn-writing-load">加载文案账本</button>
+              <button type="button" class="btn" id="btn-writing-save">保存正文</button>
+              <button type="button" class="btn" id="btn-writing-continue">续写</button>
+              <button type="button" class="btn" id="btn-writing-twist">加反转</button>
+              <button type="button" class="btn ghost" id="btn-writing-revise">按指示改写</button>
+            </div>
+          </div>
+          <div class="grid-2 writing-split">
+            <div class="card">
+              <div class="table-head">
+                <h3>最新草稿</h3>
+                <span class="muted" id="writing-draft-meta">—</span>
+              </div>
+              <pre class="result writing-draft" id="writing-draft">生成后续写/反转内容会出现在这里</pre>
+              <div class="actions">
+                <button type="button" class="btn" id="btn-writing-adopt">采用为正文（覆盖）</button>
+                <button type="button" class="btn ghost" id="btn-writing-adopt-append">追加到正文</button>
+              </div>
+            </div>
+            <div class="card">
+              <h3>自动化下游</h3>
+              <p class="muted" style="margin:0 0 12px">文案通过后：写回剧情梗概，或直接拆镜进成片链（仍需人工审定妆/静帧）。</p>
+              <div class="actions">
+                <button type="button" class="btn" id="btn-writing-apply">写回剧情梗概</button>
+                <button type="button" class="btn" id="btn-writing-expand">拆下一集分镜</button>
+              </div>
+              <div class="form-row" style="margin-top:14px;max-width:280px">
+                <label>画风（首拆时用）</label>
+                <div class="select-wrap"><select id="writing-style"></select></div>
+              </div>
+              <pre class="result" id="writing-downstream">下游结果</pre>
+            </div>
+          </div>
+          <div class="card">
+            <div class="table-head">
+              <h3>草稿历史</h3>
+              <button type="button" class="btn ghost small" id="btn-writing-refresh">刷新</button>
+            </div>
+            <table class="table">
+              <thead>
+                <tr><th>时间</th><th>类型</th><th>指示</th><th>字数</th><th>操作</th></tr>
+              </thead>
+              <tbody id="writing-history"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="mod" id="mod-stories">
+          <div class="card">
+            <div class="table-head">
+              <h3>故事集列表</h3>
+              <button type="button" class="btn ghost small" id="btn-refresh-stories">刷新</button>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>故事 ID</th>
+                  <th>标题</th>
+                  <th>章节</th>
+                  <th>角色</th>
+                  <th>道具</th>
+                  <th>镜头</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="stories-tbody"></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h3>智能拆剧（草稿）</h3>
+            <div class="form-grid">
+              <div class="form-row"><label>故事 ID</label><input id="expand-id" placeholder="例如 new_story" /></div>
+              <div class="form-row"><label>标题</label><input id="expand-title" placeholder="可选" /></div>
+              <div class="form-row"><label>画风</label><div class="select-wrap"><select id="expand-style"></select></div></div>
+              <div class="form-row full"><label>一句话主线</label><input id="expand-logline" placeholder="用一句话概括核心冲突" /></div>
+              <div class="form-row full"><label>剧情梗概</label><textarea id="expand-synopsis" rows="4" placeholder="粘贴或撰写本集剧情梗概"></textarea></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn" id="btn-expand-story">生成分镜剧本草稿</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>当前故事详情</h3>
+            <div class="form-row" style="max-width:320px;margin-bottom:12px">
+              <label>画风</label>
+              <div class="select-wrap"><select id="story-style-lock"></select></div>
+            </div>
+            <button type="button" class="btn small" id="btn-set-style">切换画风</button>
+            <pre class="result" id="story-detail">请先进入一个故事集</pre>
+          </div>
+        </section>
+
+        <section class="mod" id="mod-sheets">
+          <div class="card">
+            <div class="table-head">
+              <h3>角色定妆</h3>
+              <button type="button" class="btn ghost small" id="btn-refresh-sheets">刷新</button>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>角色</th>
+                  <th>状态</th>
+                  <th>公网</th>
+                  <th>批准</th>
+                  <th>本地文件</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="sheets-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="mod" id="mod-props">
+          <div class="card">
+            <div class="table-head">
+              <h3>道具 / 线索</h3>
+              <button type="button" class="btn ghost small" id="btn-refresh-props">刷新</button>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>道具</th>
+                  <th>线索锁</th>
+                  <th>公网设定图</th>
+                  <th>写入地址</th>
+                </tr>
+              </thead>
+              <tbody id="props-tbody"></tbody>
+            </table>
+            <p class="muted">道具图可外部生成后粘贴公网地址；成片时会自动注入参考图。</p>
+          </div>
+        </section>
+
+        <section class="mod" id="mod-stills">
+          <div class="still-hero" id="still-hero"></div>
+          <div class="card">
+            <div class="table-head">
+              <h3>分镜镜头卡 · 预览 / 细节 / 九宫格</h3>
+              <button type="button" class="btn ghost small" id="btn-refresh-stills">刷新</button>
+            </div>
+            <div class="still-board" id="stills-board"></div>
+          </div>
+        </section>
+
+        <section class="mod" id="mod-plan">
+          <div class="card">
+            <div class="table-head">
+              <h3>全章计划预审</h3>
+              <div class="actions inline">
+                <button type="button" class="btn small" id="btn-auto-bridge">自动衔接</button>
+                <button type="button" class="btn ghost small" id="btn-refresh-plan">刷新</button>
+              </div>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>镜头</th>
+                  <th>齐套</th>
+                  <th>成片路径</th>
+                  <th>衔接自上一镜</th>
+                  <th>对口型</th>
+                  <th>提示词</th>
+                </tr>
+              </thead>
+              <tbody id="plan-tbody"></tbody>
+            </table>
+            <pre class="result" id="prompt-preview">点「预览」查看成片提示词九分节</pre>
+          </div>
+        </section>
+
+        <section class="mod" id="mod-videos">
+          <div class="card">
+            <div class="table-head">
+              <h3>镜头成片</h3>
+              <div class="actions inline">
+                <input id="video-resolution" placeholder="768p横" style="width:140px" />
+                <button type="button" class="btn small" id="btn-pipeline">补全并生成</button>
+                <button type="button" class="btn ghost small" id="btn-refresh-videos">刷新</button>
+              </div>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>镜头</th>
+                  <th>成片路径</th>
+                  <th>齐套</th>
+                  <th>成片</th>
+                  <th>版本</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="videos-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="mod" id="mod-canvas">
+          <div class="card">
+            <div class="table-head">
+              <h3>画布编排（镜头卡）</h3>
+              <button type="button" class="btn ghost small" id="btn-refresh-canvas">刷新</button>
+            </div>
+            <div class="canvas-board" id="canvas-board"></div>
+          </div>
+        </section>
+
+        <section class="mod" id="mod-export">
+          <div class="card">
+            <h3>出片 / 时间线 / 工程包</h3>
+            <p class="muted" id="export-status">请先完成成片。</p>
+            <ul class="checklist" id="export-checklist"></ul>
+            <div class="actions">
+              <button type="button" class="btn" id="btn-export">一键出片</button>
+              <button type="button" class="btn ghost" id="btn-timeline">导出时间线</button>
+              <button type="button" class="btn ghost" id="btn-zip-export">导出工程包</button>
+              <button type="button" class="btn ghost" id="btn-refresh-export">刷新检查</button>
+            </div>
+            <div class="form-row" style="margin-top:12px">
+              <label>导入工程包路径</label>
+              <input id="zip-import-path" placeholder="例如 D:\path\to\bundle.zip" />
+            </div>
+            <button type="button" class="btn small" id="btn-zip-import">导入工程包</button>
+            <pre class="result" id="export-result">尚未出片</pre>
+          </div>
+        </section>
+
+        <section class="log-card">
+          <div class="log-head">
+            <h3>运行日志</h3>
+            <button type="button" class="btn ghost small" id="btn-clear-log">清空</button>
+          </div>
+          <pre id="log" class="log"></pre>
+        </section>
+      </main>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>

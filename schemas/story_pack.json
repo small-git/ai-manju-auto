@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StoryPack",
+  "description": "完整漫剧上游账本：剧本 → 人物 → 环境 → 分镜；下游再编译为 ShotJob / AutoDL 成片。",
+  "type": "object",
+  "required": ["story_id", "chapter_id", "project_id", "script", "characters", "environments", "shots"],
+  "properties": {
+    "story_id": {
+      "type": "string",
+      "description": "故事唯一 ID；一故事一剧本宇宙。成片必须 --story 显式引用，禁止串戏。"
+    },
+    "chapter_id": {
+      "type": "string",
+      "description": "章节 ID，如 CH01"
+    },
+    "project_id": { "type": "string" },
+    "title": { "type": "string" },
+    "style_lock": {
+      "type": "string",
+      "description": "templates/style_locks 名称或原文，全片统一",
+      "default": "manhua_ink"
+    },
+    "resolution": {
+      "type": "string",
+      "default": "768p横",
+      "description": "AutoDL 分辨率枚举，默认横屏 768p"
+    },
+    "video_workflow": {
+      "type": "string",
+      "default": "manhua_video_ref"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["video", "bridge", "lipsync"]
+      },
+      "default": ["video"]
+    },
+    "script": {
+      "type": "object",
+      "required": ["logline", "synopsis", "episodes"],
+      "properties": {
+        "logline": { "type": "string", "description": "一句话故事" },
+        "synopsis": { "type": "string", "description": "完整剧情梗概" },
+        "theme": { "type": "string" },
+        "episodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["episode_id", "title", "beats"],
+            "properties": {
+              "episode_id": { "type": "string", "description": "如 E01" },
+              "title": { "type": "string" },
+              "summary": { "type": "string" },
+              "beats": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["beat_id", "summary"],
+                  "properties": {
+                    "beat_id": { "type": "string" },
+                    "summary": { "type": "string" },
+                    "scene_id": { "type": "string" },
+                    "emotion": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "characters": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "identity_lock"],
+        "properties": {
+          "id": { "type": "string", "description": "如 C01" },
+          "name": { "type": "string" },
+          "role": { "type": "string", "description": "protagonist / supporting / ..." },
+          "identity_lock": {
+            "type": "string",
+            "description": "身份锁全文；分镜只改动作运镜，禁止改此句"
+          },
+          "sheet_prompt": {
+            "type": "string",
+            "description": "外部定妆三视图提示词（Zealman C19 等）"
+          },
+          "ref_images": {
+            "type": "object",
+            "description": "公网 URL；未使用槽位不要写空串",
+            "properties": {
+              "sheet": { "type": "string" },
+              "face": { "type": "string" },
+              "full": { "type": "string" },
+              "costume": { "type": "string" }
+            },
+            "additionalProperties": { "type": "string" }
+          },
+          "approved": {
+            "type": "boolean",
+            "default": true,
+            "description": "定妆审批；false 时禁止下游成片"
+          }
+        }
+      }
+    },
+    "props": {
+      "type": "array",
+      "description": "道具/线索资产；跨镜视觉连贯",
+      "default": [],
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "clue_lock"],
+        "properties": {
+          "id": { "type": "string", "description": "如 P01" },
+          "name": { "type": "string" },
+          "clue_lock": {
+            "type": "string",
+            "description": "道具外形锁定句；分镜不得改写"
+          },
+          "ref_images": {
+            "type": "object",
+            "properties": {
+              "sheet": { "type": "string" },
+              "detail": { "type": "string" }
+            },
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    },
+    "environments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "scene_card"],
+        "properties": {
+          "id": { "type": "string", "description": "如 ENV01" },
+          "name": { "type": "string" },
+          "scene_card": {
+            "type": "string",
+            "description": "地点/时间/光线/氛围；跨镜保持稳定"
+          },
+          "time_of_day": { "type": "string" },
+          "weather": { "type": "string" },
+          "ref_images": {
+            "type": "object",
+            "properties": {
+              "establishing": { "type": "string" },
+              "detail": { "type": "string" }
+            },
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    },
+    "shots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["shot_id", "episode_id", "environment_id", "character_ids", "action"],
+        "properties": {
+          "shot_id": { "type": "string", "description": "如 E01_S01_SH01" },
+          "episode_id": { "type": "string" },
+          "scene_id": { "type": "string" },
+          "beat_id": { "type": "string" },
+          "environment_id": { "type": "string" },
+          "character_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" }
+          },
+          "prop_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "本镜出场道具 ID"
+          },
+          "duration": { "type": "integer", "minimum": 1, "maximum": 15, "default": 5 },
+          "camera": {
+            "type": "object",
+            "properties": {
+              "shot_size": { "type": "string", "description": "wide / medium / close / ..." },
+              "angle": { "type": "string" },
+              "move": { "type": "string", "description": "static / slow_push / pan / ..." }
+            }
+          },
+          "action": {
+            "type": "string",
+            "description": "本镜唯一可变叙事：动作与运镜结果，不含改身份"
+          },
+          "dialogue": { "type": ["string", "null"] },
+          "emotion": { "type": "string" },
+          "still_prompt": {
+            "type": "string",
+            "description": "外部静帧提示（可选；缺省由场景卡+动作编译）"
+          },
+          "video_prompt": {
+            "type": "string",
+            "description": "成片提示（可选；缺省由 duration+camera+action 编译）"
+          },
+          "still_url": {
+            "type": "string",
+            "description": "本镜静帧公网 URL（外部生图后填入）"
+          },
+          "ref_images": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "覆盖自动组装的参考图列表"
+          },
+          "ref_audios": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "tail_frame_note": { "type": "string" },
+          "state": {
+            "type": "object",
+            "description": "镜间连续性账本",
+            "additionalProperties": true
+          },
+          "plan_path": {
+            "type": "string",
+            "enum": ["video_ref", "bridge", "grid", "lipsync"],
+            "default": "video_ref",
+            "description": "计划预审路径"
+          },
+          "plan_notes": { "type": "string" },
+          "bridge_from": {
+            "type": ["string", "null"],
+            "description": "上一镜 shot_id；需要首尾帧衔接时填写"
+          },
+          "first_frame": { "type": "string" },
+          "last_frame": { "type": "string" },
+          "needs_lipsync": { "type": "boolean", "default": false },
+          "still_approved": { "type": "boolean", "default": true },
+          "video_approved": { "type": "boolean", "default": true },
+          "segment_break": { "type": "boolean", "default": false },
+          "hard_cut": { "type": "boolean", "default": false },
+          "grid_cell": { "type": "integer", "minimum": 1, "maximum": 9 },
+          "workflow": { "type": "string" },
+          "seed": { "type": ["integer", "null"] }
+        }
+      }
+    }
+  }
+}

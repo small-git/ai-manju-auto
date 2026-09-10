@@ -1,0 +1,12 @@
+# Dev overlay (prefer package name after profile install).
+# Permanent mount lives in: %USERPROFILE%\.dsh\profiles\web\cordis.patch.yml
+- insert:
+    - id: dsh-manhua
+      name: dsh-manhua
+      config:
+        autodlApiTokenEnv: AUTODL_API_TOKEN
+        openaiApiKeyEnv: OPENAI_API_KEY
+        geminiApiKeyEnv: GEMINI_API_KEY
+        autodlBaseUrl: "https://autodl.art"
+        defaultResolution: "768p横"
+        videoWorkflowId: "minimax_h3_lightx2v_v5"

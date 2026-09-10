@@ -1,6 +1,13 @@
 .env
+.manhua-secrets.json
 .venv/
 venv/
+node_modules/
+dsh-manhua/dist/
+dsh-manhua/.env
+dsh-manhua/package-lock.json
+dsh-manhua/pnpm-lock.yaml
+dist-packages/
 __pycache__/
 *.py[cod]
 .pytest_cache/
