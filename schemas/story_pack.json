@@ -18,7 +18,7 @@
     "style_lock": {
       "type": "string",
       "description": "templates/style_locks 名称或原文，全片统一",
-      "default": "manhua_ink"
+      "default": "live_action"
     },
     "resolution": {
       "type": "string",

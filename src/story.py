@@ -265,7 +265,7 @@ def expand_story_pack(pack: dict[str, Any]) -> dict[str, Any]:
         "chapter_id": pack.get("chapter_id"),
         "project_id": pack["project_id"],
         "title": pack.get("title"),
-        "style_lock": pack.get("style_lock") or "manhua_ink",
+        "style_lock": pack.get("style_lock") or "live_action",
         "resolution": pack.get("resolution") or "768p横",
         "video_workflow": pack.get("video_workflow") or "manhua_video_ref",
         "steps": pack.get("steps") or ["video"],

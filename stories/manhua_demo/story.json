@@ -3,7 +3,7 @@
   "chapter_id": "CH01",
   "project_id": "linzhou_e01",
   "title": "竹简雨桥",
-  "style_lock": "manhua_ink",
+  "style_lock": "live_action",
   "resolution": "768p横",
   "video_workflow": "manhua_video_ref",
   "steps": ["video", "bridge"],
@@ -44,7 +44,7 @@
       "id": "C01",
       "name": "林舟",
       "role": "protagonist",
-      "identity_lock": "主角林舟：十七岁少年，黑发束高马尾，左眉一道浅疤，青灰色交领短打，腰系玄色布带，手持竹简；五官清俊，眼神沉静。全程保持同一张脸、同一发型、同一套服装与水墨漫剧画风。",
+      "identity_lock": "主角林舟：十七岁少年，黑发束高马尾，左眉一道浅疤，青灰色交领短打，腰系玄色布带，手持竹简；五官清俊，眼神沉静。全程保持同一张真人面孔、同一发型、同一套服装与真人写实影视画风。",
       "sheet_prompt": "角色设定三视图，正面全身、侧面全身、背面全身，同一人物并排展示，纯色浅灰背景。主角林舟：十七岁少年，黑发束高马尾，左眉一道浅疤，青灰色交领短打，腰系玄色布带，手持竹简，五官清俊，眼神沉静。全身比例统一，无文字水印。",
       "ref_images": {
         "sheet": "https://litter.catbox.moe/p713m6.png"
@@ -57,7 +57,7 @@
       "name": "江南石桥",
       "time_of_day": "night_rain",
       "weather": "rain",
-      "scene_card": "夜雨中的江南石桥，青石湿亮反光，远处灯笼晕开暖光，河面细雨涟漪，纵深构图，横屏16:9电影感，水墨漫剧场景，禁止真人摄影。",
+      "scene_card": "夜雨中的江南石桥，青石湿亮反光，远处灯笼晕开暖光，河面细雨涟漪，纵深构图，横屏16:9电影感，真人写实影视场景，自然雨雾与真实光影。",
       "ref_images": {
         "establishing": "https://litter.catbox.moe/fyle4p.png"
       }

@@ -11,6 +11,7 @@ alwaysApply: true
 - 成片主链：多图参考 H3（`manhua_video_ref` / `manhua_video_ref_hq`），不要用纯文生 `manhua_video_t2v` 做人设主生成。
 - 镜间连续用 `manhua_bridge`（首尾帧）；对白用 `manhua_lipsync`。
 - 定妆/静帧可用 GPT/Gemini、模型广场生图 API，或外部面板；产物需公网 URL 写入 `ref_images` / `still_url`。
+- 默认画风锁：`live_action`（真人写实）。水墨/赛璐璐仍可选，但新建故事默认真人。
 - 全链路注入同一画风锁 + 身份锁；**单镜只改 `action` 与运镜，不改 `identity_lock` / `clue_lock`**。
 - 成片前过齐套门闸（定妆批准、道具 sheet、静帧/环境 URL）；计划预审选 `video_ref`/`bridge`/`grid`/`lipsync`。
 - 成功后立即下载 results URL（短时有效），落盘到 `runs/<story_id>/<chapter_id>/`（版本化 `03_video/<shot_id>/vNN.mp4`）。
@@ -29,6 +30,6 @@ alwaysApply: true
 - 无 `--story` 引用就跑成片。
 - 用 A 故事文件生成 B 的 `story_id`。
 - 把 API token 写进可提交代码或文档示例。
-- 二次元转真人、破坏画风的洗图步骤进主链。
+- 中途切换画风（例如把已生成的二次元定妆洗成真人或反之）破坏身份锁的步骤进主链。
 - 空字符串占位未使用的 ref 槽。
 - 在分镜里改写人物五官/发型/服装身份句。

@@ -44,7 +44,7 @@ def _dump_json(path: Path, data: Any) -> None:
 
 def run_legacy_project(pack: dict[str, Any], out_root: Path) -> dict[str, Any]:
     steps = pack.get("steps") or ["video"]
-    style = load_style_lock(pack.get("style_lock", "manhua_ink"))
+    style = load_style_lock(pack.get("style_lock", "live_action"))
     identity = pack.get("identity_lock") or ""
     project_id = pack.get("project_id") or "manhua"
     out_root.mkdir(parents=True, exist_ok=True)
@@ -87,7 +87,7 @@ def run_story_project(
     step("流水线", "进入故事成片", story_id=story_id)
     assert_story_bound_for_video(pack, story_id)
     expanded = expand_story_pack(pack)
-    style = load_style_lock(expanded.get("style_lock", "manhua_ink"))
+    style = load_style_lock(expanded.get("style_lock", "live_action"))
     steps = list(expanded.get("steps") or ["video"])
     out_root.mkdir(parents=True, exist_ok=True)
     _dump_json(out_root / "expanded_shot_jobs.json", expanded)

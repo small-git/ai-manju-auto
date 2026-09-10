@@ -135,7 +135,7 @@ export async function expandStoryFromSynopsis(opts: {
       title: opts.title || opts.story_id,
       logline: opts.logline,
       synopsis: opts.synopsis,
-      style_lock: opts.style_lock || "manhua_ink",
+      style_lock: opts.style_lock || "live_action",
     },
     temperature: 0.4,
     signal: opts.signal,
@@ -143,7 +143,7 @@ export async function expandStoryFromSynopsis(opts: {
   pack.story_id = opts.story_id;
   pack.resolution = pack.resolution || "768p横";
   pack.video_workflow = pack.video_workflow || "manhua_video_ref";
-  pack.style_lock = opts.style_lock || pack.style_lock || "manhua_ink";
+  pack.style_lock = opts.style_lock || pack.style_lock || "live_action";
   pack.props = pack.props || [];
   return pack;
 }

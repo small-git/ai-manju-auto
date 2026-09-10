@@ -779,7 +779,7 @@ export async function writingExpandEpisodeTool(args: {
       title: args.title || doc.title || args.story_id,
       logline: doc.logline || writingText.slice(0, 80),
       synopsis: writingText,
-      style_lock: args.style_lock || "manhua_ink",
+      style_lock: args.style_lock || "live_action",
     });
     const dest = saveStory(pack);
     return {

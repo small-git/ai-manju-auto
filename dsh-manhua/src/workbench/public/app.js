@@ -26,6 +26,7 @@ const PROVIDERS = [
 
 const PROVIDER_LABELS = { autodl: "AutoDL", openai: "OpenAI", gemini: "Gemini" };
 const STYLE_LABELS = {
+  live_action: "真人写实",
   manhua_ink: "水墨漫剧",
   manhua_cel: "赛璐璐漫剧",
   anime_otaku_night: "二次元夜景",
@@ -103,7 +104,7 @@ function fillStyleSelects() {
   const locks = state.board?.style_locks || Object.keys(STYLE_LABELS);
   const opts =
     locks.map((s) => `<option value="${s}">${styleLabel(s)}</option>`).join("") ||
-    `<option value="manhua_ink">${styleLabel("manhua_ink")}</option>`;
+    `<option value="live_action">${styleLabel("live_action")}</option>`;
   ["expand-style", "story-style-lock", "writing-style"].forEach((id) => {
     const el = $(id);
     if (!el) return;
