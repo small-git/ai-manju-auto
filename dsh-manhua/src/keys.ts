@@ -228,13 +228,13 @@ export async function keysStatus(): Promise<{
     settings: {
       autodlBaseUrl: local.settings?.autodlBaseUrl || binding.settings.autodlBaseUrl || "https://autodl.art",
       openaiBaseUrl:
-        local.settings?.openaiBaseUrl || binding.settings.openaiBaseUrl || "https://api.openai.com/v1",
+        local.settings?.openaiBaseUrl || binding.settings.openaiBaseUrl || "https://linkapi.ai/v1",
       geminiBaseUrl:
         local.settings?.geminiBaseUrl ||
         binding.settings.geminiBaseUrl ||
-        "https://generativelanguage.googleapis.com/v1beta",
+        "https://linkapi.ai",
       openaiImageModel:
-        local.settings?.openaiImageModel || binding.settings.openaiImageModel || "gpt-image-1",
+        local.settings?.openaiImageModel || binding.settings.openaiImageModel || "gpt-image-2",
       openaiChatModel:
         local.settings?.openaiChatModel || binding.settings.openaiChatModel || "gpt-4o-mini",
       geminiImageModel:

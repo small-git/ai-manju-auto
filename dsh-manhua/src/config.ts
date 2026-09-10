@@ -39,16 +39,16 @@ export function loadConfig(): ManhuaConfig {
     repoRoot: REPO_ROOT,
     storiesDir: STORIES_DIR,
     runsDir: RUNS_DIR,
-    openaiBaseUrl: (s.openaiBaseUrl || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(
+    openaiBaseUrl: (s.openaiBaseUrl || process.env.OPENAI_BASE_URL || "https://linkapi.ai/v1").replace(
       /\/$/,
       "",
     ),
     geminiBaseUrl: (
       s.geminiBaseUrl ||
       process.env.GEMINI_BASE_URL ||
-      "https://generativelanguage.googleapis.com/v1beta"
+      "https://linkapi.ai"
     ).replace(/\/$/, ""),
-    openaiImageModel: s.openaiImageModel || process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
+    openaiImageModel: s.openaiImageModel || process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
     openaiChatModel: s.openaiChatModel || process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini",
     geminiImageModel: s.geminiImageModel || process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image",
     autodlBaseUrl: (s.autodlBaseUrl || process.env.AUTODL_BASE_URL || "https://autodl.art").replace(/\/$/, ""),

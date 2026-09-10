@@ -6,7 +6,10 @@
   "style_lock": "live_action",
   "resolution": "768p横",
   "video_workflow": "manhua_video_ref",
-  "steps": ["video", "bridge"],
+  "steps": [
+    "video",
+    "bridge"
+  ],
   "script": {
     "logline": "少年林舟雨夜立于江南石桥，手握竹简，决意启程追查失踪的师门秘录。",
     "synopsis": "夜雨江南。十七岁的林舟立于青石桥心，竹简藏着师门残页。远处灯笼暖光摇曳，河面映出他左眉浅疤。他先环顾空桥与雨幕，再侧身望向下游来路，最后缓缓转头、衣袂被风掀起——心中已定：天亮前必须离开这座城。本集只写启程前的静夜一刻，不做打斗，强调人物身份稳定与镜间情绪递进。",
@@ -46,9 +49,8 @@
       "role": "protagonist",
       "identity_lock": "主角林舟：十七岁少年，黑发束高马尾，左眉一道浅疤，青灰色交领短打，腰系玄色布带，手持竹简；五官清俊，眼神沉静。全程保持同一张真人面孔、同一发型、同一套服装与真人写实影视画风。",
       "sheet_prompt": "角色设定三视图，正面全身、侧面全身、背面全身，同一人物并排展示，纯色浅灰背景。主角林舟：十七岁少年，黑发束高马尾，左眉一道浅疤，青灰色交领短打，腰系玄色布带，手持竹简，五官清俊，眼神沉静。全身比例统一，无文字水印。",
-      "ref_images": {
-        "sheet": "https://litter.catbox.moe/p713m6.png"
-      }
+      "ref_images": {},
+      "approved": true
     }
   ],
   "environments": [
@@ -78,8 +80,12 @@
       "scene_id": "S01",
       "beat_id": "B01",
       "environment_id": "ENV01",
-      "character_ids": ["C01"],
-      "prop_ids": ["P01"],
+      "character_ids": [
+        "C01"
+      ],
+      "prop_ids": [
+        "P01"
+      ],
       "duration": 5,
       "camera": {
         "shot_size": "wide",
@@ -89,13 +95,13 @@
       "action": "雨幕中石桥全貌展开，林舟自桥左侧缓步走入桥心，竹简贴身，停步环顾空桥。",
       "emotion": "沉静",
       "plan_path": "video_ref",
-      "still_url": "https://litter.catbox.moe/fyle4p.png",
       "tail_frame_note": "林舟立于桥心，正面微侧，面向镜头偏右，灯笼光在远景左侧",
       "state": {
         "wardrobe": "青灰交领短打",
         "holding": "竹简",
         "facing": "slight_right"
-      }
+      },
+      "still_approved": true
     },
     {
       "shot_id": "E01_S01_SH02",
@@ -103,8 +109,12 @@
       "scene_id": "S01",
       "beat_id": "B02",
       "environment_id": "ENV01",
-      "character_ids": ["C01"],
-      "prop_ids": ["P01"],
+      "character_ids": [
+        "C01"
+      ],
+      "prop_ids": [
+        "P01"
+      ],
       "duration": 5,
       "camera": {
         "shot_size": "medium",
@@ -129,8 +139,12 @@
       "scene_id": "S01",
       "beat_id": "B03",
       "environment_id": "ENV01",
-      "character_ids": ["C01"],
-      "prop_ids": ["P01"],
+      "character_ids": [
+        "C01"
+      ],
+      "prop_ids": [
+        "P01"
+      ],
       "duration": 5,
       "camera": {
         "shot_size": "medium_close",

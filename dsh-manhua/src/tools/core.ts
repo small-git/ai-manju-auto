@@ -194,8 +194,13 @@ export async function characterSheetGpt(
     () => providerGenerateSheet({ prompt, destPath: dest, size: args.size, signal }),
     { label: `sheet:${ch.id}` },
   );
-  ch.ref_images = { ...(ch.ref_images || {}), sheet: img.url || img.localPath };
-  if (img.url) ch.ref_images.sheet = img.url;
+  ch.ref_images = { ...(ch.ref_images || {}) };
+  if (img.url) {
+    ch.ref_images.sheet = img.url;
+  } else if (ch.ref_images.sheet && !/^https?:\/\//i.test(ch.ref_images.sheet)) {
+    // 禁止把本地路径写进公网槽，否则齐套门闸误判且 AutoDL 无法拉取
+    delete ch.ref_images.sheet;
+  }
   ch.approved = true;
   saveStory(pack, filePath);
   return {
@@ -206,7 +211,9 @@ export async function characterSheetGpt(
     url: img.url || null,
     provider: img.provider,
     model: img.model,
-    note: img.url ? "已写回 characters[].ref_images.sheet" : "仅本地落盘；需公网 URL 才能成片",
+    note: img.url
+      ? "已写回 characters[].ref_images.sheet"
+      : "仅本地落盘；请配置 PUBLIC_ASSET_BASE_URL 或上传公网 URL 后才能成片",
   };
 }
 
@@ -246,7 +253,9 @@ export async function shotStillGemini(
     saveManifest(dirs, manifest);
   }
   if (img.url) shot.still_url = img.url;
-  else shot.still_url = img.localPath;
+  else if (shot.still_url && !/^https?:\/\//i.test(shot.still_url)) {
+    delete shot.still_url;
+  }
   if (args.as_grid) shot.plan_path = "grid";
   shot.still_approved = true;
   saveStory(pack, filePath);
@@ -261,6 +270,9 @@ export async function shotStillGemini(
     as_grid: !!args.as_grid,
     provider: img.provider,
     model: img.model,
+    note: img.url
+      ? "已写回 shots[].still_url"
+      : "仅本地落盘；请配置 PUBLIC_ASSET_BASE_URL 或上传公网 URL 后才能成片",
   };
 }
 
