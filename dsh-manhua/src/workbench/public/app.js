@@ -15,7 +15,7 @@ const MODS = {
   plan: { title: "计划预审", desc: "逐镜路径、自动衔接、提示词预览" },
   videos: { title: "成片管理", desc: "齐套门闸、跳过已有、流水线" },
   canvas: { title: "画布编排", desc: "镜头卡一览（账本仍是故事剧本）" },
-  export: { title: "出片 / 交付", desc: "拼接成章、时间线、压缩包" },
+  export: { title: "出片 / 交付", desc: "拼接成章、配音字幕、剪映草稿、压缩包" },
 };
 
 const PROVIDERS = [
@@ -725,15 +725,19 @@ function renderExport() {
     return;
   }
   const missing = board.export.missing_shots || [];
+  const bits = [];
+  if (board.export.ready) bits.push("成章已有");
+  if (board.export.dub_file) bits.push("配音成片已有");
+  if (board.export.srt) bits.push("SRT 已有");
   $("export-status").textContent = missing.length
     ? `还差 ${missing.length} 个镜头成片。`
-    : board.export.ready
-      ? `已有成章：${board.export.file}`
-      : "镜头成片已齐，可以出片。";
+    : bits.length
+      ? `${bits.join(" · ")}。成章：${board.export.file || "-"}`
+      : "镜头成片已齐，可以出片；再点「补配音+字幕」。";
   $("export-checklist").innerHTML = (board.shots || [])
     .map(
       (s) =>
-        `<li class="${s.video_ready ? "ok" : "bad"}">${s.shot_id} ${s.video_ready ? "✓" : "×"} · ${planLabel(s.plan_path)}</li>`,
+        `<li class="${s.video_ready ? "ok" : "bad"}">${s.shot_id} ${s.video_ready ? "✓" : "×"} · ${planLabel(s.plan_path)}${s.dialogue ? " · 有对白" : ""}</li>`,
     )
     .join("");
 }
@@ -1076,9 +1080,49 @@ $("btn-timeline").onclick = async () => {
   try {
     const data = await api("/api/timeline", { method: "POST", body: JSON.stringify({ story_id: requireStory() }) });
     $("export-result").textContent = JSON.stringify(data, null, 2);
-    log(`时间线：${data.timeline_file}`);
+    state.board = await api(`/api/board/${encodeURIComponent(requireStory())}`);
+    renderAllBoard();
+    log(`时间线：${data.timeline_file}；字幕：${data.srt_file}`);
   } catch (e) {
     log(e.message);
+  }
+};
+
+$("btn-deliver").onclick = async () => {
+  try {
+    $("btn-deliver").disabled = true;
+    $("export-result").textContent = "正在补配音与字幕（含 TTS）…";
+    const data = await api("/api/chapter-deliver", {
+      method: "POST",
+      body: JSON.stringify({ story_id: requireStory(), jianying: true }),
+    });
+    $("export-result").textContent = JSON.stringify(data, null, 2);
+    state.board = await api(`/api/board/${encodeURIComponent(requireStory())}`);
+    renderAllBoard();
+    log(`交付完成：配音=${data.dub_file || "无"}；字幕=${data.srt_file || "无"}`);
+  } catch (e) {
+    $("export-result").textContent = e.message;
+    log(e.message);
+  } finally {
+    $("btn-deliver").disabled = false;
+  }
+};
+
+$("btn-jianying").onclick = async () => {
+  try {
+    $("btn-jianying").disabled = true;
+    $("export-result").textContent = "正在导出剪映草稿…";
+    const data = await api("/api/jianying", {
+      method: "POST",
+      body: JSON.stringify({ story_id: requireStory() }),
+    });
+    $("export-result").textContent = JSON.stringify(data, null, 2);
+    log(`剪映草稿：${data.draft_path || data.note}`);
+  } catch (e) {
+    $("export-result").textContent = e.message;
+    log(e.message);
+  } finally {
+    $("btn-jianying").disabled = false;
   }
 };
 

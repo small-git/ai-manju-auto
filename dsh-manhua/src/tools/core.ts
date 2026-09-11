@@ -42,9 +42,14 @@ import {
 import {
   buildTimelineManifest,
   cropGridCell,
+  exportJianyingDraft,
   exportStoryZip,
   importStoryZip,
+  muxChapterDub,
+  probeDurationSec,
+  writeSrtBesideTimeline,
 } from "../production/export_bundle.js";
+import { RUNS_DIR, ensureDir } from "../paths.js";
 import {
   getProviders,
   providerBridge,
@@ -66,7 +71,6 @@ import {
 } from "../production/writing.js";
 import type { WritingKind } from "../production/writing.js";
 import { probeProvider } from "../providers/probe.js";
-import { RUNS_DIR, ensureDir } from "../paths.js";
 import { fail, info, ok, step, warn } from "../zh-log.js";
 
 export type ToolResult = Record<string, unknown>;
@@ -610,26 +614,187 @@ export async function zipImportTool(args: { zip_path: string }): Promise<ToolRes
   return { ok: true, ...importStoryZip(args.zip_path) };
 }
 
+function resolveShotAudioLocal(dirs: ReturnType<typeof assetDirs>, shotId: string): string | null {
+  for (const ext of [".mp3", ".wav", ".m4a"]) {
+    const p = path.join(dirs.audio, `${shotId}${ext}`);
+    if (fs.existsSync(p) && fs.statSync(p).size >= 32) return p;
+  }
+  return null;
+}
+
 export async function timelineExportTool(args: { story_id: string }): Promise<ToolResult> {
+  step("时间线", "正在导出时间线与字幕", { story_id: args.story_id });
   const { pack } = loadStory(args.story_id);
   const dirs = assetDirs(pack);
   const clips = pack.shots
     .map((sh) => {
       const file = resolveSelectedVideo(pack, dirs, sh.shot_id);
       if (!file) return null;
+      const audio = resolveShotAudioLocal(dirs, sh.shot_id);
+      const duration = probeDurationSec(file, sh.duration || 5);
       return {
         shot_id: sh.shot_id,
         file,
-        duration: sh.duration || 5,
+        duration,
         dialogue: sh.dialogue,
+        audio_file: audio,
+        audio_duration_sec: audio ? probeDurationSec(audio, duration) : undefined,
       };
     })
-    .filter(Boolean) as Array<{ shot_id: string; file: string; duration: number; dialogue?: string | null }>;
+    .filter(Boolean) as Array<{
+    shot_id: string;
+    file: string;
+    duration: number;
+    dialogue?: string | null;
+    audio_file?: string | null;
+    audio_duration_sec?: number;
+  }>;
   const timeline = buildTimelineManifest(pack, clips);
   ensureDir(dirs.exportDir);
   const out = path.join(dirs.exportDir, `${pack.chapter_id}_timeline.json`);
   fs.writeFileSync(out, JSON.stringify(timeline, null, 2), "utf8");
-  return { ok: true, timeline_file: out, timeline };
+  const srtFile = writeSrtBesideTimeline(timeline, out);
+  ok("时间线", "已写出 timeline + SRT", { timeline_file: out, srt_file: srtFile, clips: clips.length });
+  return { ok: true, timeline_file: out, srt_file: srtFile, timeline };
+}
+
+/** 全章对白 TTS（有 dialogue 的镜头） */
+export async function chapterTtsTool(
+  args: { story_id: string; force?: boolean },
+  signal?: AbortSignal,
+): Promise<ToolResult> {
+  const { pack } = loadStory(args.story_id);
+  const dirs = assetDirs(pack);
+  step("全章配音", "正在为有对白镜头生成 TTS", { story_id: args.story_id });
+  const results: ToolResult[] = [];
+  const errors: Array<{ shot_id: string; error: string }> = [];
+  for (const shot of pack.shots) {
+    if (!shot.dialogue) continue;
+    const existing = resolveShotAudioLocal(dirs, shot.shot_id);
+    if (existing && !args.force) {
+      results.push({ ok: true, skipped: true, shot_id: shot.shot_id, local_path: existing });
+      continue;
+    }
+    try {
+      results.push(await shotTts({ story_id: args.story_id, shot_id: shot.shot_id }, signal));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      fail("全章配音", `镜头 ${shot.shot_id} 失败，继续下一镜`, { error: message.slice(0, 200) });
+      errors.push({ shot_id: shot.shot_id, error: message });
+    }
+  }
+  ok("全章配音", "TTS 批次结束", { ok_count: results.length, fail_count: errors.length });
+  return {
+    ok: errors.length === 0,
+    story_id: args.story_id,
+    count: results.length,
+    results,
+    errors,
+  };
+}
+
+/**
+ * 交付包：可选全章 TTS → 时间线/SRT →（若已有成片）叠配音轨 → 可选剪映草稿。
+ * 默认不重跑 lipsync（贵且慢）；先解决「无声无字幕」交付。
+ */
+export async function chapterDeliverTool(
+  args: {
+    story_id: string;
+    force_tts?: boolean;
+    skip_tts?: boolean;
+    skip_mux?: boolean;
+    jianying?: boolean;
+    jianying_draft_dir?: string;
+  },
+  signal?: AbortSignal,
+): Promise<ToolResult> {
+  const storyId = args.story_id;
+  step("章节交付", "开始补配音/字幕交付", { story_id: storyId });
+  const { pack } = loadStory(storyId);
+  const dirs = assetDirs(pack);
+
+  let ttsResult: ToolResult | null = null;
+  if (!args.skip_tts) {
+    ttsResult = await chapterTtsTool({ story_id: storyId, force: args.force_tts }, signal);
+  }
+
+  const timelineResult = await timelineExportTool({ story_id: storyId });
+  const timelineFile = String(timelineResult.timeline_file);
+  const srtFile = String(timelineResult.srt_file);
+  const timeline = timelineResult.timeline as {
+    clips: Array<{ duration_sec: number; audio_file?: string | null; dialogue?: string | null }>;
+  };
+
+  const chapterCut = path.join(dirs.exportDir, `${pack.chapter_id}_chapter_cut.mp4`);
+  let dubFile: string | null = null;
+  let muxNote: string | null = null;
+  if (!args.skip_mux && fs.existsSync(chapterCut)) {
+    dubFile = path.join(dirs.exportDir, `${pack.chapter_id}_chapter_dub.mp4`);
+    const muxed = muxChapterDub({
+      videoFile: chapterCut,
+      outFile: dubFile,
+      clips: timeline.clips,
+      srtFile,
+    });
+    muxNote = muxed.note;
+  } else if (!args.skip_mux) {
+    warn("章节交付", "尚未有 chapter_cut，跳过叠轨；请先一键出片");
+  }
+
+  let jianying: ToolResult | null = null;
+  if (args.jianying) {
+    try {
+      jianying = await jianyingExportTool({
+        story_id: storyId,
+        draft_dir: args.jianying_draft_dir,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      warn("章节交付", "剪映草稿失败（配音/字幕已产出）", { error: message.slice(0, 240) });
+      jianying = { ok: false, error: message };
+    }
+  }
+
+  ok("章节交付", "配音/字幕交付完成", {
+    srt_file: srtFile,
+    dub_file: dubFile,
+    jianying: !!jianying?.ok,
+  });
+  return {
+    ok: true,
+    story_id: storyId,
+    tts: ttsResult,
+    timeline_file: timelineFile,
+    srt_file: srtFile,
+    chapter_cut: fs.existsSync(chapterCut) ? chapterCut : null,
+    dub_file: dubFile,
+    mux_note: muxNote,
+    jianying,
+  };
+}
+
+export async function jianyingExportTool(args: {
+  story_id: string;
+  draft_dir?: string;
+  draft_name?: string;
+}): Promise<ToolResult> {
+  const timelineResult = await timelineExportTool({ story_id: args.story_id });
+  const timelineFile = String(timelineResult.timeline_file);
+  const srtFile = String(timelineResult.srt_file);
+  const result = exportJianyingDraft({
+    timelineFile,
+    draftDir: args.draft_dir,
+    draftName: args.draft_name,
+    srtFile,
+  });
+  return {
+    ok: true,
+    draft_path: result.draft_path || null,
+    draft_name: result.draft_name || null,
+    note: result.note,
+    timeline_file: timelineFile,
+    srt_file: srtFile,
+  };
 }
 
 export async function expandStoryTool(args: {
@@ -1107,9 +1272,47 @@ export const toolSpecs = [
   {
     name: "漫剧_导出时间线",
     title: "导出时间线",
-    description: "【漫剧】导出时间线 JSON（剪映参考清单）。",
+    description: "【漫剧】导出时间线 JSON + SRT 字幕。",
     parameters: { story_id: { type: "string", required: true } },
     execute: timelineExportTool,
+    render: textRender,
+  },
+  {
+    name: "漫剧_全章配音",
+    title: "全章配音",
+    description: "【漫剧】为有对白镜头批量 TTS。",
+    parameters: {
+      story_id: { type: "string", required: true },
+      force: { type: "boolean" },
+    },
+    execute: chapterTtsTool,
+    render: textRender,
+  },
+  {
+    name: "漫剧_章节交付",
+    title: "章节交付",
+    description: "【漫剧】TTS + SRT + 叠配音轨 + 可选剪映草稿。",
+    parameters: {
+      story_id: { type: "string", required: true },
+      force_tts: { type: "boolean" },
+      skip_tts: { type: "boolean" },
+      skip_mux: { type: "boolean" },
+      jianying: { type: "boolean" },
+      jianying_draft_dir: { type: "string" },
+    },
+    execute: chapterDeliverTool,
+    render: textRender,
+  },
+  {
+    name: "漫剧_导出剪映草稿",
+    title: "导出剪映草稿",
+    description: "【漫剧】用 pyJianYingDraft 生成剪映草稿目录。",
+    parameters: {
+      story_id: { type: "string", required: true },
+      draft_dir: { type: "string" },
+      draft_name: { type: "string" },
+    },
+    execute: jianyingExportTool,
     render: textRender,
   },
   {

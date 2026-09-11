@@ -37,6 +37,9 @@ import {
   shotTts,
   storyLoad,
   timelineExportTool,
+  chapterDeliverTool,
+  chapterTtsTool,
+  jianyingExportTool,
   zipExportTool,
   zipImportTool,
   writingAdoptTool,
@@ -256,7 +259,9 @@ function boardForStory(storyId: string) {
   });
 
   const exportFile = path.join(dirs.exportDir, `${pack.chapter_id}_chapter_cut.mp4`);
+  const dubFile = path.join(dirs.exportDir, `${pack.chapter_id}_chapter_dub.mp4`);
   const timelineFile = path.join(dirs.exportDir, `${pack.chapter_id}_timeline.json`);
+  const srtFile = path.join(dirs.exportDir, `${pack.chapter_id}.srt`);
   const readySheets = characters.filter((c) => c.sheet_ready && c.approved).length;
   const readyStills = shots.filter((s) => s.still_ready && s.still_approved).length;
   const readyVideos = shots.filter((s) => s.video_ready).length;
@@ -282,7 +287,9 @@ function boardForStory(storyId: string) {
       videos_ready: readyVideos,
       gate_ready: readyGate,
       export_ready: fs.existsSync(exportFile),
+      dub_ready: fs.existsSync(dubFile),
       timeline_ready: fs.existsSync(timelineFile),
+      srt_ready: fs.existsSync(srtFile),
     },
     characters,
     props,
@@ -296,7 +303,9 @@ function boardForStory(storyId: string) {
     })),
     export: {
       file: fs.existsSync(exportFile) ? exportFile : null,
+      dub_file: fs.existsSync(dubFile) ? dubFile : null,
       timeline: fs.existsSync(timelineFile) ? timelineFile : null,
+      srt: fs.existsSync(srtFile) ? srtFile : null,
       ready: fs.existsSync(exportFile),
       missing_shots: shots.filter((s) => !s.video_ready).map((s) => s.shot_id),
     },
@@ -568,6 +577,47 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
     if (method === "POST" && pathname === "/api/timeline") {
       const body = await readJson(req);
       sendJson(res, 200, await timelineExportTool({ story_id: String(body.story_id || "") }));
+      return;
+    }
+    if (method === "POST" && pathname === "/api/chapter-tts") {
+      const body = await readJson(req);
+      sendJson(
+        res,
+        200,
+        await chapterTtsTool({
+          story_id: String(body.story_id || ""),
+          force: !!body.force,
+        }),
+      );
+      return;
+    }
+    if (method === "POST" && pathname === "/api/chapter-deliver") {
+      const body = await readJson(req);
+      sendJson(
+        res,
+        200,
+        await chapterDeliverTool({
+          story_id: String(body.story_id || ""),
+          force_tts: !!body.force_tts,
+          skip_tts: !!body.skip_tts,
+          skip_mux: !!body.skip_mux,
+          jianying: body.jianying !== false,
+          jianying_draft_dir: body.jianying_draft_dir ? String(body.jianying_draft_dir) : undefined,
+        }),
+      );
+      return;
+    }
+    if (method === "POST" && pathname === "/api/jianying") {
+      const body = await readJson(req);
+      sendJson(
+        res,
+        200,
+        await jianyingExportTool({
+          story_id: String(body.story_id || ""),
+          draft_dir: body.draft_dir ? String(body.draft_dir) : undefined,
+          draft_name: body.draft_name ? String(body.draft_name) : undefined,
+        }),
+      );
       return;
     }
     if (method === "POST" && pathname === "/api/zip-export") {

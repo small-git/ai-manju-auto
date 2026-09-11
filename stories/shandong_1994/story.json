@@ -203,7 +203,10 @@
       "still_approved": true,
       "needs_lipsync": true,
       "still_url": "https://litter.catbox.moe/zd3n56.png",
-      "video_approved": true
+      "video_approved": true,
+      "ref_audios": [
+        "D:\\Projects\\autodl-manhua-pipeline\\runs\\shandong_1994\\CH01\\02_audio\\SH01.mp3"
+      ]
     },
     {
       "shot_id": "SH02",
@@ -229,7 +232,10 @@
       "still_approved": true,
       "needs_lipsync": true,
       "still_url": "https://litter.catbox.moe/rm0tkk.png",
-      "video_approved": true
+      "video_approved": true,
+      "ref_audios": [
+        "D:\\Projects\\autodl-manhua-pipeline\\runs\\shandong_1994\\CH01\\02_audio\\SH02.mp3"
+      ]
     },
     {
       "shot_id": "SH03",
@@ -259,7 +265,10 @@
       "still_approved": true,
       "needs_lipsync": true,
       "still_url": "https://litter.catbox.moe/gy46aa.png",
-      "video_approved": true
+      "video_approved": true,
+      "ref_audios": [
+        "D:\\Projects\\autodl-manhua-pipeline\\runs\\shandong_1994\\CH01\\02_audio\\SH03.mp3"
+      ]
     },
     {
       "shot_id": "SH04",
@@ -287,7 +296,10 @@
       "still_approved": true,
       "needs_lipsync": true,
       "still_url": "https://litter.catbox.moe/8sahq1.png",
-      "video_approved": true
+      "video_approved": true,
+      "ref_audios": [
+        "D:\\Projects\\autodl-manhua-pipeline\\runs\\shandong_1994\\CH01\\02_audio\\SH04.mp3"
+      ]
     },
     {
       "shot_id": "SH05",
@@ -316,7 +328,10 @@
       "still_approved": true,
       "needs_lipsync": true,
       "still_url": "https://litter.catbox.moe/4jo179.png",
-      "video_approved": true
+      "video_approved": true,
+      "ref_audios": [
+        "D:\\Projects\\autodl-manhua-pipeline\\runs\\shandong_1994\\CH01\\02_audio\\SH05.mp3"
+      ]
     },
     {
       "shot_id": "SH06",
@@ -344,7 +359,10 @@
       "still_approved": true,
       "needs_lipsync": true,
       "still_url": "https://litter.catbox.moe/ooeskb.png",
-      "video_approved": true
+      "video_approved": true,
+      "ref_audios": [
+        "D:\\Projects\\autodl-manhua-pipeline\\runs\\shandong_1994\\CH01\\02_audio\\SH06.mp3"
+      ]
     }
   ]
 }
