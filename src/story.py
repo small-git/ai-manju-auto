@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+try:
+    from constants import DEFAULT_RESOLUTION, DEFAULT_STYLE_LOCK, DEFAULT_WORKFLOW
+except ImportError:  # 包方式导入（import src.story）
+    from .constants import DEFAULT_RESOLUTION, DEFAULT_STYLE_LOCK, DEFAULT_WORKFLOW
+
 
 class StoryError(ValueError):
     pass
@@ -222,8 +227,8 @@ def expand_shot(
         "character_ids": cids,
         "prop_ids": list(shot.get("prop_ids") or []),
         "duration": duration,
-        "resolution": pack.get("resolution") or "768p横",
-        "workflow": shot.get("workflow") or pack.get("video_workflow") or "manhua_video_ref",
+        "resolution": pack.get("resolution") or DEFAULT_RESOLUTION,
+        "workflow": shot.get("workflow") or pack.get("video_workflow") or DEFAULT_WORKFLOW,
         "plan_path": shot.get("plan_path") or "video_ref",
         "prompt": video_prompt,
         "still_prompt": still_prompt,
@@ -243,6 +248,8 @@ def expand_shot(
         job["first_frame"] = shot["first_frame"]
     if shot.get("last_frame"):
         job["last_frame"] = shot["last_frame"]
+    if shot.get("still_url"):
+        job["still_url"] = shot["still_url"]
     # continuity defaults from environment
     st = job["state"]
     st.setdefault("location", env.get("name"))
@@ -265,10 +272,25 @@ def expand_story_pack(pack: dict[str, Any]) -> dict[str, Any]:
         "chapter_id": pack.get("chapter_id"),
         "project_id": pack["project_id"],
         "title": pack.get("title"),
-        "style_lock": pack.get("style_lock") or "live_action",
-        "resolution": pack.get("resolution") or "768p横",
-        "video_workflow": pack.get("video_workflow") or "manhua_video_ref",
+        "style_lock": pack.get("style_lock") or DEFAULT_STYLE_LOCK,
+        "resolution": pack.get("resolution") or DEFAULT_RESOLUTION,
+        "video_workflow": pack.get("video_workflow") or DEFAULT_WORKFLOW,
         "steps": pack.get("steps") or ["video"],
         "script": pack["script"],
         "shot_jobs": jobs,
     }
+
+
+def derive_bridge_frames(
+    job: dict[str, Any],
+    jobs_by_id: dict[str, dict[str, Any]],
+) -> tuple[str | None, str | None]:
+    """Bridge 首尾帧派生：显式帧优先，缺失时回退到相邻镜静帧。
+
+    - first_frame ← 本镜显式 first_frame，否则上一镜（bridge_from）的 last_frame/still_url
+    - last_frame  ← 本镜显式 last_frame，否则本镜 still_url
+    """
+    src = jobs_by_id.get(str(job.get("bridge_from") or "")) or {}
+    first = job.get("first_frame") or src.get("last_frame") or src.get("still_url")
+    last = job.get("last_frame") or job.get("still_url")
+    return (first or None), (last or None)

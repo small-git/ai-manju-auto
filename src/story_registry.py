@@ -6,8 +6,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from story import StoryError, validate_story_pack
-from zh_log import fail, info, ok, step, warn
+try:
+    from story import StoryError, validate_story_pack
+    from zh_log import fail, info, ok, step, warn
+except ImportError:  # 包方式导入（import src.story_registry）
+    from .story import StoryError, validate_story_pack
+    from .zh_log import fail, info, ok, step, warn
 
 ROOT = Path(__file__).resolve().parents[1]
 STORIES_DIR = ROOT / "stories"

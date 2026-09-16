@@ -46,18 +46,26 @@ copy .env.example .env
 ## 运行
 
 ```bash
-# 校验 / 展开完整剧情包
+# 校验 / 展开完整剧情包（只读，可不带 --story）
 python src/run_pipeline.py examples/manhua_demo/story_pack.json --validate-only
 python src/run_pipeline.py examples/manhua_demo/story_pack.json --expand-only
 
-# 只跑其中一镜
-python src/run_pipeline.py examples/manhua_demo/story_pack.json --shots E01_S01_SH03
+# 成片必须显式 --story（一故事一剧本，防串戏硬门禁）
+python src/run_pipeline.py --story manhua_demo                      # 全镜成片
+python src/run_pipeline.py --story manhua_demo --shots E01_S01_SH03 # 只跑其中一镜
+
+# 断点续跑：默认跳过已有成功产物；--force 全部重跑
+python src/run_pipeline.py --story manhua_demo --retries 2          # 失败指数退避重试
+python src/run_pipeline.py --story manhua_demo --keep-going         # 单镜失败不中断（退出码 3）
+python src/run_pipeline.py --story manhua_demo --force              # 忽略已有产物重跑
 
 # 单镜 ShotJob
 python src/run_shot.py examples/shot_ref_video.json
 ```
 
-产物：`runs/<project_id>/`（含 `expanded_shot_jobs.json`）。
+产物：`runs/<story_id>/<chapter_id>/`（含 `expanded_shot_jobs.json`、`pipeline_report.json`）。
+
+> 成片前置：出场 `characters`/`props` 的 `ref_images` 与各镜 `still_url` 必须是**公网 URL**（本地文件不被 AutoDL 接受）。可用 `python src/gen_story_assets.py --story <id> --shot <shot_id> [--also-sheet]` 生图并自动回填；Bridge 首尾帧缺省时自动由相邻镜 `still_url` 派生。
 
 ## 调用链
 

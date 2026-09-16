@@ -1,0 +1,35 @@
+---
+description: Python 成片段编码约定（双模式导入、常量集中、错误分层、续跑重试、pytest）
+globs: src/**/*.py,tests/**/*.py
+alwaysApply: false
+---
+
+# 模块与导入
+
+- 跨模块导入必须双模式，同时支持脚本直跑（`python src/run_pipeline.py`）与包导入（`import src.story`）：
+
+```python
+try:
+    from zh_log import ok
+except ImportError:  # 包方式导入
+    from .zh_log import ok
+```
+
+- 默认值一律引用 `src/constants.py`（`DEFAULT_RESOLUTION` / `DEFAULT_WORKFLOW` / `DEFAULT_STYLE_LOCK` / `DEFAULT_DURATION`），禁止在代码里散落硬编码 `"768p横"`、`"manhua_video_ref"`。
+
+# 错误分层
+
+- 数据契约错误抛 `StoryError`：确定性错误，不重试，main 捕获后退出码 2。
+- API / 网络错误抛 `AutodlError`：瞬时性，可走 `--retries` 指数退避重试。
+- 部分失败：`--keep-going` 记录进 `pipeline_report.json` 的 `failures`，结束退出码 3。
+
+# 执行语义（批量成片必须保持）
+
+- 断点续跑：`_load_existing_meta()` 判定成功产物（meta 状态 SUCCESS/COMPLETED/DONE 且文件齐全）自动跳过，`--force` 重跑。
+- 重试：`_run_with_retry()`，`wait = min(2**attempt * 5, 60)`。
+- Bridge 首尾帧：显式 `first_frame`/`last_frame` 优先，缺省由 `derive_bridge_frames()` 从相邻镜 `still_url` 派生。
+
+# 测试
+
+- pytest 位于 `tests/`，运行：`.venv/Scripts/python.exe -m pytest tests -q`。
+- 改 `story.py` / `compile.py` 的契约行为必须同步补测试；开发依赖在 `requirements-dev.txt`。

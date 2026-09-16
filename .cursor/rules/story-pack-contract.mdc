@@ -1,0 +1,23 @@
+---
+description: StoryPack JSON 数据契约（stories/ 与 examples/ 故事包的编写与同步规则）
+globs: stories/**/*.json,examples/**/*.json
+alwaysApply: false
+---
+
+# StoryPack 编写契约
+
+Schema：`schemas/story_pack.json`。任何修改必须能通过 `validate_story_pack()`（`--validate-only`）。
+
+- 必填：`story_id` / `chapter_id` / `project_id` / `script`(logline, synopsis, episodes) / `characters` / `environments` / `shots`。
+- 引用必须闭合：`shots[].episode_id ∈ script.episodes`；`environment_id`、`character_ids`、`prop_ids`、`bridge_from` 必须指向已定义 ID。
+- `shot_id` 全局唯一；`ref_images` 数组内禁止空串。
+- `plan_path` 仅允许 `video_ref` / `bridge` / `grid` / `lipsync`。
+- 冻结文本（`identity_lock` / `scene_card` / `clue_lock`）在分镜中禁止改写；分镜只写 `action` / `camera` / `emotion` / `state`。
+- `characters[].approved=false` 时禁止下游成片。
+- 参考图（角色 sheet/face/full/costume、道具 sheet/detail、环境 establishing、各镜 `still_url`）必须是公网 URL；litter.catbox.moe 等短时链接仅限临时调试，正式跑前替换。
+- Bridge：`bridge_from` 指向上一镜；首尾帧可显式 `first_frame`/`last_frame`，缺省时由相邻镜 `still_url` 自动派生。
+
+# 注册与同步
+
+- 规范路径：`stories/<story_id>/story.json`；校验通过自动注册进 `stories/index.json`（相对路径）。
+- `stories/` 注册包与 `examples/` 示例包内容必须保持同步，改一边要同步另一边。

@@ -11,7 +11,10 @@ from urllib.parse import urlparse
 
 import requests
 
-from zh_log import fail, info, ok, step, warn
+try:
+    from zh_log import fail, info, ok, step, warn
+except ImportError:  # 包方式导入（import src.autodl_client）
+    from .zh_log import fail, info, ok, step, warn
 
 
 class AutodlError(RuntimeError):

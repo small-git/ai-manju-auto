@@ -49,7 +49,9 @@
       "role": "protagonist",
       "identity_lock": "主角林舟：十七岁少年，黑发束高马尾，左眉一道浅疤，青灰色交领短打，腰系玄色布带，手持竹简；五官清俊，眼神沉静。全程保持同一张真人面孔、同一发型、同一套服装与真人写实影视画风。",
       "sheet_prompt": "角色设定三视图，正面全身、侧面全身、背面全身，同一人物并排展示，纯色浅灰背景。主角林舟：十七岁少年，黑发束高马尾，左眉一道浅疤，青灰色交领短打，腰系玄色布带，手持竹简，五官清俊，眼神沉静。全身比例统一，无文字水印。",
-      "ref_images": {},
+      "ref_images": {
+        "sheet": "https://litter.catbox.moe/p713m6.png"
+      },
       "approved": true
     }
   ],
@@ -95,6 +97,7 @@
       "action": "雨幕中石桥全貌展开，林舟自桥左侧缓步走入桥心，竹简贴身，停步环顾空桥。",
       "emotion": "沉静",
       "plan_path": "video_ref",
+      "still_url": "https://litter.catbox.moe/fyle4p.png",
       "tail_frame_note": "林舟立于桥心，正面微侧，面向镜头偏右，灯笼光在远景左侧",
       "state": {
         "wardrobe": "青灰交领短打",

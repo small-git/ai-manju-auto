@@ -48,8 +48,10 @@ StoryPack（schemas/story_pack.json）
 ```bash
 python src/run_pipeline.py examples/manhua_demo/story_pack.json --validate-only
 python src/run_pipeline.py examples/manhua_demo/story_pack.json --expand-only
-python src/run_pipeline.py examples/manhua_demo/story_pack.json --shots E01_S01_SH03
+python src/run_pipeline.py --story manhua_demo --shots E01_S01_SH03   # 成片必须显式 --story
 ```
+
+成片默认断点续跑（已有成功产物自动跳过，`--force` 重跑），失败可 `--retries N` 退避重试、`--keep-going` 不中断；Bridge 首尾帧缺省时自动由相邻镜 `still_url` 派生。
 
 ## 提示词与一致性
 

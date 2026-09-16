@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +25,13 @@ from compile import (  # noqa: E402
     load_workflow_config,
     run_shot,
 )
-from story import StoryError, expand_story_pack, validate_story_pack  # noqa: E402
+from constants import DEFAULT_RESOLUTION  # noqa: E402
+from story import (  # noqa: E402
+    StoryError,
+    derive_bridge_frames,
+    expand_story_pack,
+    validate_story_pack,
+)
 from story_registry import (  # noqa: E402
     assert_story_bound_for_video,
     register_story,
@@ -40,6 +47,56 @@ def _is_story_pack(pack: dict[str, Any]) -> bool:
 def _dump_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _load_existing_meta(out_dir: Path, shot_id: str) -> dict[str, Any] | None:
+    """断点续跑：已有成功产物（meta 记录成功且文件齐全）则复用，否则重跑。"""
+    meta_path = out_dir / f"{shot_id}_meta.json"
+    if not meta_path.exists():
+        return None
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    status = str(meta.get("status") or "").upper()
+    files = [Path(f) for f in meta.get("files") or []]
+    if status in {"SUCCESS", "COMPLETED", "DONE"} and files and all(p.exists() for p in files):
+        return meta
+    return None
+
+
+def _run_with_retry(
+    client: AutodlClient,
+    job: dict[str, Any],
+    out_dir: Path,
+    *,
+    cfg: dict[str, Any],
+    style_lock: str,
+    retries: int,
+    identity_lock: str = "",
+) -> dict[str, Any]:
+    """单镜执行 + 指数退避重试；StoryError 属确定性数据错误，不重试。"""
+    attempt = 0
+    while True:
+        try:
+            return run_shot(
+                client, job, out_dir, cfg=cfg, style_lock=style_lock, identity_lock=identity_lock
+            )
+        except StoryError:
+            raise
+        except Exception:
+            attempt += 1
+            if attempt > retries:
+                raise
+            wait = min(2**attempt * 5, 60)
+            warn(
+                "流水线",
+                "单镜失败，准备重试",
+                shot_id=job.get("shot_id"),
+                attempt=attempt,
+                wait_sec=wait,
+            )
+            time.sleep(wait)
 
 
 def run_legacy_project(pack: dict[str, Any], out_root: Path) -> dict[str, Any]:
@@ -62,7 +119,7 @@ def run_legacy_project(pack: dict[str, Any], out_root: Path) -> dict[str, Any]:
         vid.setdefault("id", f"{project_id}_vid")
         vid.setdefault("shot_id", vid["id"])
         vid.setdefault("workflow", pack.get("video_workflow") or "manhua_video_ref")
-        vid.setdefault("resolution", pack.get("resolution") or "768p横")
+        vid.setdefault("resolution", pack.get("resolution") or DEFAULT_RESOLUTION)
         if refs and not vid.get("ref_images"):
             vid["ref_images"] = refs
         if pack.get("ref_audios") and not vid.get("ref_audios"):
@@ -83,6 +140,9 @@ def run_story_project(
     *,
     story_id: str,
     shot_ids: list[str] | None = None,
+    force: bool = False,
+    retries: int = 1,
+    keep_going: bool = False,
 ) -> dict[str, Any]:
     step("流水线", "进入故事成片", story_id=story_id)
     assert_story_bound_for_video(pack, story_id)
@@ -111,69 +171,116 @@ def run_story_project(
         "shots": {},
     }
 
+    failures: dict[str, str] = {}
+
     if "video" in steps:
         video_dir = out_root / "03_video"
         video_dir.mkdir(parents=True, exist_ok=True)
         step("流水线", "开始批量成片", count=len(jobs))
         for job in jobs:
-            wf = job.get("workflow") or ""
-            if (not job.get("ref_images")) and wf.startswith("manhua_video_ref"):
-                fail(
-                    "流水线",
-                    f"{job['shot_id']} 缺少参考图，无法走多参考成片",
-                    workflow=wf,
+            try:
+                wf = job.get("workflow") or ""
+                if (not job.get("ref_images")) and wf.startswith("manhua_video_ref"):
+                    raise StoryError(
+                        f"{job['shot_id']}: 多参考成片需要 ref_images/still_url。"
+                        "请先生图填参考，或本镜临时改用 manhua_video_t2v 预览。"
+                    )
+                if not force:
+                    existing = _load_existing_meta(video_dir, job["shot_id"])
+                    if existing:
+                        info("流水线", "跳过已有成片（--force 可重跑）", shot_id=job["shot_id"])
+                        report["shots"].setdefault(job["shot_id"], {})["video"] = {
+                            **existing,
+                            "skipped_existing": True,
+                        }
+                        continue
+                meta = _run_with_retry(
+                    client,
+                    job,
+                    video_dir,
+                    cfg=cfg,
+                    style_lock=style,
+                    retries=retries,
+                    identity_lock=job.get("identity_lock") or "",
                 )
-                raise StoryError(
-                    f"{job['shot_id']}: 多参考成片需要 ref_images/still_url。"
-                    "请先生图填参考，或本镜临时改用 manhua_video_t2v 预览。"
-                )
-            meta = run_shot(
-                client,
-                job,
-                video_dir,
-                cfg=cfg,
-                style_lock=style,
-                identity_lock=job.get("identity_lock") or "",
-            )
+            except Exception as e:
+                if not keep_going:
+                    fail("流水线", "故事成片中断", shot_id=job.get("shot_id"), error=e)
+                    raise
+                failures[job["shot_id"]] = str(e)
+                warn("流水线", "单镜失败，继续后续镜头", shot_id=job["shot_id"], error=e)
+                report["shots"].setdefault(job["shot_id"], {})["video"] = {
+                    "status": "FAILED",
+                    "error": str(e),
+                }
+                continue
             report["shots"].setdefault(job["shot_id"], {})["video"] = meta
 
     if "bridge" in steps:
         bridge_dir = out_root / "04_bridge"
         bridge_dir.mkdir(parents=True, exist_ok=True)
         step("流水线", "开始镜间 Bridge")
+        jobs_by_id = {j["shot_id"]: j for j in expanded["shot_jobs"]}
         for job in jobs:
             if not job.get("bridge_from"):
                 continue
+            first_frame, last_frame = derive_bridge_frames(job, jobs_by_id)
             br = {
                 "shot_id": f"{job['shot_id']}_bridge",
                 "workflow": "manhua_bridge",
-                "resolution": job.get("resolution") or "768p横",
+                "resolution": job.get("resolution") or DEFAULT_RESOLUTION,
                 "duration": job.get("duration") or 5,
                 "prompt": job.get("prompt") or "",
-                "first_frame": job.get("first_frame"),
-                "last_frame": job.get("last_frame"),
+                "first_frame": first_frame,
+                "last_frame": last_frame,
             }
             if not br["first_frame"] or not br["last_frame"]:
                 warn(
                     "流水线",
-                    f"{job['shot_id']} 跳过 Bridge（缺首尾帧公网 URL）",
+                    f"{job['shot_id']} 跳过 Bridge（缺首尾帧：显式帧或相邻镜 still_url）",
                     bridge_from=job.get("bridge_from"),
                 )
                 report["shots"].setdefault(job["shot_id"], {})["bridge"] = {
                     "skipped": True,
-                    "reason": "need first_frame + last_frame public URLs",
+                    "reason": "need first_frame + last_frame（可显式填写或由相邻镜 still_url 派生）",
                     "bridge_from": job.get("bridge_from"),
                 }
                 continue
-            meta = run_shot(
-                client,
-                br,
-                bridge_dir,
-                cfg=cfg,
-                style_lock=style,
-                identity_lock=job.get("identity_lock") or "",
-            )
+            try:
+                if not force:
+                    existing = _load_existing_meta(bridge_dir, br["shot_id"])
+                    if existing:
+                        info("流水线", "跳过已有 Bridge（--force 可重跑）", shot_id=br["shot_id"])
+                        report["shots"].setdefault(job["shot_id"], {})["bridge"] = {
+                            **existing,
+                            "skipped_existing": True,
+                        }
+                        continue
+                meta = _run_with_retry(
+                    client,
+                    br,
+                    bridge_dir,
+                    cfg=cfg,
+                    style_lock=style,
+                    retries=retries,
+                    identity_lock=job.get("identity_lock") or "",
+                )
+            except Exception as e:
+                if not keep_going:
+                    fail("流水线", "Bridge 中断", shot_id=br["shot_id"], error=e)
+                    raise
+                failures[br["shot_id"]] = str(e)
+                warn("流水线", "Bridge 失败，继续后续镜头", shot_id=br["shot_id"], error=e)
+                report["shots"].setdefault(job["shot_id"], {})["bridge"] = {
+                    "status": "FAILED",
+                    "error": str(e),
+                }
+                continue
             report["shots"].setdefault(job["shot_id"], {})["bridge"] = meta
+
+    if failures:
+        report["failures"] = failures
+        warn("流水线", "存在失败镜头", failed=",".join(failures))
 
     _dump_json(out_root / "pipeline_report.json", report)
     ok("流水线", "故事成片报告已写出", path=str(out_root / "pipeline_report.json"))
@@ -201,6 +308,9 @@ def main() -> None:
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--expand-only", action="store_true")
     parser.add_argument("--register-only", action="store_true", help="校验并注册到 stories/index.json")
+    parser.add_argument("--force", action="store_true", help="忽略已有产物，全部重跑")
+    parser.add_argument("--retries", type=int, default=1, help="单镜失败重试次数（指数退避）")
+    parser.add_argument("--keep-going", action="store_true", help="单镜失败不中断，记录报告后继续")
     args = parser.parse_args()
 
     ensure_env()
@@ -270,10 +380,21 @@ def main() -> None:
 
         shot_ids = [s.strip() for s in args.shots.split(",") if s.strip()] or None
         try:
-            run_story_project(pack, out, story_id=story_id, shot_ids=shot_ids)
+            report = run_story_project(
+                pack,
+                out,
+                story_id=story_id,
+                shot_ids=shot_ids,
+                force=args.force,
+                retries=args.retries,
+                keep_going=args.keep_going,
+            )
         except StoryError as e:
             fail("流水线", "故事成片中断", error=e)
             raise SystemExit(2) from e
+        if report.get("failures"):
+            fail("流水线", "部分镜头失败", failed=",".join(report["failures"]))
+            raise SystemExit(3)
         return
 
     # legacy

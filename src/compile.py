@@ -10,8 +10,14 @@ from typing import Any
 import yaml
 from dotenv import load_dotenv
 
-from autodl_client import AutodlClient, AutodlError
-from zh_log import fail, ok, step
+try:
+    from autodl_client import AutodlClient, AutodlError
+    from constants import DEFAULT_DURATION, DEFAULT_RESOLUTION, DEFAULT_WORKFLOW
+    from zh_log import fail, ok, step
+except ImportError:  # 包方式导入（import src.compile）
+    from .autodl_client import AutodlClient, AutodlError
+    from .constants import DEFAULT_DURATION, DEFAULT_RESOLUTION, DEFAULT_WORKFLOW
+    from .zh_log import fail, ok, step
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,7 +46,7 @@ def resolve_workflow(cfg: dict[str, Any], shot: dict[str, Any]) -> tuple[str, di
     if not alias and shot.get("stage"):
         alias = (cfg.get("stages") or {}).get(shot["stage"])
     if not alias:
-        alias = os.getenv("DEFAULT_WORKFLOW", "manhua_video_ref")
+        alias = os.getenv("DEFAULT_WORKFLOW", DEFAULT_WORKFLOW)
     wf = (cfg.get("workflows") or {}).get(alias)
     if not wf:
         raise AutodlError(f"unknown workflow alias: {alias}")
@@ -61,12 +67,12 @@ def compile_body(cfg: dict[str, Any], shot: dict[str, Any], style_lock: str = ""
         shot.get("resolution")
         or local_defaults.get("resolution")
         or global_defaults.get("resolution")
-        or os.getenv("DEFAULT_RESOLUTION", "768p横")
+        or os.getenv("DEFAULT_RESOLUTION", DEFAULT_RESOLUTION)
     )
     duration = shot.get("duration")
     if duration is None:
         duration = local_defaults.get("duration") or global_defaults.get("duration") or int(
-            os.getenv("DEFAULT_DURATION", "5")
+            os.getenv("DEFAULT_DURATION", str(DEFAULT_DURATION))
         )
 
     body: dict[str, Any] = {}

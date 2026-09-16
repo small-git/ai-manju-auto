@@ -11,7 +11,10 @@ from urllib.parse import urlparse
 
 import requests
 
-from autodl_client import AutodlError
+try:
+    from autodl_client import AutodlError
+except ImportError:  # 包方式导入（import src.image_client）
+    from .autodl_client import AutodlError
 
 
 class ImageClient:

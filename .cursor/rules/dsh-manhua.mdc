@@ -1,0 +1,25 @@
+---
+description: dsh-manhua TS 工作台约定（路径、密钥、门闸、与 Python 侧契约一致性）
+globs: dsh-manhua/**/*.ts
+alwaysApply: false
+---
+
+# dsh-manhua 工作台
+
+- Node ≥20 + TypeScript（NodeNext，`tsx` 运行）；前端无框架（手写 HTML/CSS/JS，`workbench/public/`）。
+- 三种入口：Web 工作台 `workbench.cmd`（:3780）、CLI 工具箱 `toolbox.cmd`、dsh 插件 `src/index.ts`。
+
+# 路径与数据
+
+- 路径一律经 `src/paths.ts`（`REPO_ROOT` = 父仓库根），直接读写父仓库 `stories/` 与 `runs/`，禁止另立数据目录。
+- 产物目录约定：`runs/<story_id>/<chapter_id>/{01_assets,02_audio,03_video,04_export}`。
+- 数据语义与 Python 侧 StoryPack 契约保持一致（`identity_lock` / `clue_lock` / `scene_card` / `shot_id` / `plan_path`），不得发明分叉字段。
+
+# 密钥
+
+- 密钥经 `keys.ts` 管理，落盘 `.manhua-secrets.json`（已 gitignore）；禁止硬编码 token、禁止写入可提交文件。
+
+# 成片门闸
+
+- 成片前必须过 `production/gate.ts` 齐套门闸：出场角色公网 sheet 且已批准、道具公网 sheet、静帧或环境 establishing、无空串 ref。
+- 跨层调用父仓库脚本（如 `scripts/export_jianying_draft.py`）走 `production/export_bundle.ts`，不要在多处重复拼命令。
