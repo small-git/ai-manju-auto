@@ -26,25 +26,25 @@
           },
           {
             "beat_id": "E01_B02",
-            "scene_id": "E02",
+            "scene_id": "E06",
             "summary": "车子驶离村庄，平凡擦开车窗上的雾气，回望麦田、院墙与歪脖子杨树。",
             "emotion": "陌生中的留恋"
           },
           {
             "beat_id": "E01_B03",
-            "scene_id": "E03",
+            "scene_id": "E07",
             "summary": "母亲带平凡到镇小学报到，老师翻看点名册并交代下午按时上课。",
             "emotion": "拘谨与认真"
           },
           {
             "beat_id": "E01_B04",
-            "scene_id": "E03",
+            "scene_id": "E07",
             "summary": "老师让平凡向同学介绍自己，他低头攥着衣角，小声说出自己的名字和来处。",
             "emotion": "羞怯与不安"
           },
           {
             "beat_id": "E01_B05",
-            "scene_id": "E03",
+            "scene_id": "E07",
             "summary": "课间平凡独自站在走廊尽头，随后被老师调到靠窗座位，收好书包并翻开新课本。",
             "emotion": "孤单中的安定"
           }
@@ -61,7 +61,7 @@
       "sheet_prompt": "1994年中国山东济宁农村，7岁安静男孩，圆脸，细眉，黑色大眼睛，平直鼻梁，薄嘴唇，麦色皮肤，黑色凌乱短发，瘦小身材，灰蓝色旧棉布上衣，深蓝色长裤，旧布鞋，蓝色帆布书包，真人写实影视风，生活化比例，自然光影，live_action",
       "approved": true,
       "ref_images": {
-        "sheet": "https://litter.catbox.moe/qsng9x.png"
+        "sheet": "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH01/01_assets/C01_sheet.png"
       }
     },
     {
@@ -72,7 +72,7 @@
       "sheet_prompt": "1994年中国山东济宁农村母亲，32岁，温和椭圆脸，黑色眼睛，小巧鼻梁，黑色长发低发髻，朴实结实体型，深色小碎花棉袄，黑色宽腿裤，黑色布鞋，深蓝色围裙，真人写实影视风，live_action",
       "approved": true,
       "ref_images": {
-        "sheet": "https://litter.catbox.moe/nbn4ir.png"
+        "sheet": "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH01/01_assets/C02_sheet.png"
       }
     },
     {
@@ -83,7 +83,7 @@
       "sheet_prompt": "1994年中国山东济宁农村父亲，35岁，方脸，浓眉，深黑眼睛，宽鼻梁，黝黑皮肤，黑色短发，发际线略高，结实偏瘦体型，褪色蓝色工装外套，灰色粗布裤，黑色布鞋，真人写实影视风，live_action",
       "approved": true,
       "ref_images": {
-        "sheet": "https://litter.catbox.moe/049pvk.png"
+        "sheet": "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH01/01_assets/C03_sheet.png"
       }
     },
     {
@@ -94,7 +94,7 @@
       "sheet_prompt": "1994年山东济宁农村小学女教师，28岁，鹅蛋脸，细眉，黑色齐耳短发，米白衬衫，深灰针织背心，深色长裙，黑色布鞋，手持粉笔和点名册，真人写实影视风，live_action",
       "approved": true,
       "ref_images": {
-        "sheet": "https://litter.catbox.moe/mv1gce.png"
+        "sheet": "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH01/01_assets/C04_sheet.png"
       }
     }
   ],
@@ -105,9 +105,7 @@
       "scene_card": "山东济宁农村土坯院落，低矮砖房，灶房门口有煤炉和黑色铁锅，墙边堆着玉米秸秆，门槛磨损，院中摆着旧木凳，生活痕迹浓厚。",
       "time_of_day": "傍晚",
       "weather": "晴朗闷热，空气中有夏蝉声",
-      "ref_images": {
-        "establishing": "https://litter.catbox.moe/zd3n56.png"
-      }
+      "ref_images": {}
     },
     {
       "id": "E02",
@@ -115,9 +113,7 @@
       "scene_card": "济宁农村村边土路与麦田，田埂狭窄，远处有稀疏杨树和低矮村屋，泥土路上留有车辙，整体开阔而朴素。",
       "time_of_day": "春日下午",
       "weather": "晴天，微风，阳光柔和",
-      "ref_images": {
-        "establishing": "https://litter.catbox.moe/zd3n56.png"
-      }
+      "ref_images": {}
     },
     {
       "id": "E03",
@@ -125,9 +121,7 @@
       "scene_card": "1994年农村小学，低矮砖瓦校舍，黄土地操场，黑板边缘掉漆，木课桌排列整齐，窗框陈旧，墙上有手绘课程表。",
       "time_of_day": "上午",
       "weather": "晴朗，阳光从旧窗户斜射进教室",
-      "ref_images": {
-        "establishing": "https://litter.catbox.moe/zd3n56.png"
-      }
+      "ref_images": {}
     },
     {
       "id": "E04",
@@ -135,9 +129,7 @@
       "scene_card": "狭窄灶房，煤炉余火泛红，墙面被烟熏成灰黑色，灶台后藏着一个旧铁盒，桌面上有搪瓷碗和几张零钱，光线主要来自煤炉与昏黄灯泡。",
       "time_of_day": "深夜",
       "weather": "屋外寒凉，无雨",
-      "ref_images": {
-        "establishing": "https://litter.catbox.moe/zd3n56.png"
-      }
+      "ref_images": {}
     },
     {
       "id": "E05",
@@ -145,9 +137,23 @@
       "scene_card": "山东农村村口，土路从院落之间延伸到远方，路旁有老槐树、电线杆和低矮土墙，远处隐约可见通往镇上的公路与早班车方向。",
       "time_of_day": "清晨",
       "weather": "秋日薄雾，微凉，天色刚亮",
-      "ref_images": {
-        "establishing": "https://litter.catbox.moe/zd3n56.png"
-      }
+      "ref_images": {}
+    },
+    {
+      "id": "E06",
+      "name": "早班车内",
+      "scene_card": "1994年乡镇早班车内部，墨绿色人造革座椅边角开裂，车窗玻璃蒙着薄薄雾气，扶手立杆掉漆，车厢光线昏暗偏冷；窗外天色刚亮，麦田、院墙与村屋不断向后退去，空气里有柴油味与乘客低语声。",
+      "time_of_day": "清晨",
+      "weather": "车外薄雾微凉",
+      "ref_images": {}
+    },
+    {
+      "id": "E07",
+      "name": "镇小学教学楼",
+      "scene_card": "1994年山东小镇小学，白漆门柱，青砖三层教学楼，楼道水泥地白墙，教室木课桌排列整齐，讲台上方挂电铃，靠窗一排新栽细枝小树；课间操场喧闹，整体比村小学规整明亮，真人写实影视场景。",
+      "time_of_day": "上午",
+      "weather": "晴朗，阳光明亮",
+      "ref_images": {}
     }
   ],
   "props": [
@@ -195,14 +201,15 @@
       "emotion": "克制的不舍与紧张",
       "plan_path": "video_ref",
       "still_approved": true,
-      "needs_lipsync": false
+      "needs_lipsync": false,
+      "still_url": "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH02/01_assets/E01_S01_SH01_still.png"
     },
     {
       "shot_id": "E01_S02_SH01",
       "episode_id": "E01",
-      "scene_id": "E02",
+      "scene_id": "E06",
       "beat_id": "E01_B02",
-      "environment_id": "E02",
+      "environment_id": "E06",
       "character_ids": [
         "C01"
       ],
@@ -220,14 +227,15 @@
       "emotion": "陌生中的留恋",
       "plan_path": "video_ref",
       "still_approved": true,
-      "needs_lipsync": false
+      "needs_lipsync": false,
+      "still_url": "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH02/01_assets/E01_S02_SH01_still.png"
     },
     {
       "shot_id": "E01_S03_SH01",
       "episode_id": "E01",
-      "scene_id": "E03",
+      "scene_id": "E07",
       "beat_id": "E01_B03",
-      "environment_id": "E03",
+      "environment_id": "E07",
       "character_ids": [
         "C01",
         "C02",
@@ -248,14 +256,15 @@
       "emotion": "拘谨与认真",
       "plan_path": "video_ref",
       "still_approved": true,
-      "needs_lipsync": false
+      "needs_lipsync": false,
+      "still_url": "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH02/01_assets/E01_S03_SH01_still.png"
     },
     {
       "shot_id": "E01_S04_SH01",
       "episode_id": "E01",
-      "scene_id": "E03",
+      "scene_id": "E07",
       "beat_id": "E01_B04",
-      "environment_id": "E03",
+      "environment_id": "E07",
       "character_ids": [
         "C01",
         "C04"
@@ -273,16 +282,18 @@
       "action": "老师示意平凡面对教室，平凡低头攥住衣角，短暂抬眼后小声开口，教室里的动静渐渐安静下来",
       "dialogue": "平凡：我叫平凡，来自东边的村子。",
       "emotion": "羞怯与不安",
-      "plan_path": "video_ref",
+      "plan_path": "bridge",
       "still_approved": true,
-      "needs_lipsync": false
+      "needs_lipsync": false,
+      "still_url": "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH02/01_assets/E01_S04_SH01_still.png",
+      "bridge_from": "E01_S03_SH01"
     },
     {
       "shot_id": "E01_S05_SH01",
       "episode_id": "E01",
-      "scene_id": "E03",
+      "scene_id": "E07",
       "beat_id": "E01_B05",
-      "environment_id": "E03",
+      "environment_id": "E07",
       "character_ids": [
         "C01",
         "C04"
@@ -299,9 +310,11 @@
       "action": "平凡独自扶着走廊栏杆看向操场，老师示意他坐到靠窗位置；他收好书包肩带，打开新课本，窗外细树枝条轻轻晃动",
       "dialogue": "老师：你坐这儿吧。平凡：好。",
       "emotion": "孤单中的安定",
-      "plan_path": "video_ref",
+      "plan_path": "bridge",
       "still_approved": true,
-      "needs_lipsync": false
+      "needs_lipsync": false,
+      "still_url": "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH02/01_assets/E01_S05_SH01_still.png",
+      "bridge_from": "E01_S04_SH01"
     }
   ]
 }

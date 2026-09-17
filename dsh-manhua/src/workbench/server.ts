@@ -395,7 +395,8 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
       return;
     }
     if (method === "GET" && pathname.startsWith("/api/media/")) {
-      const rel = decodeURIComponent(pathname.slice("/api/media/".length));
+      // 兼容 publicUrlFor 的仓库根相对路径（rel 可能带 runs/ 前缀）
+      const rel = decodeURIComponent(pathname.slice("/api/media/".length)).replace(/^runs\//, "");
       const filePath = path.resolve(RUNS_DIR, rel);
       const root = path.resolve(RUNS_DIR);
       if (!filePath.startsWith(root + path.sep)) {

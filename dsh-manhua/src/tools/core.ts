@@ -330,7 +330,7 @@ export async function autodlVideoRef(
   signal?: AbortSignal,
 ): Promise<ToolResult> {
   step("成片工具", "准备多参考成片", { story_id: args.story_id, shot_id: args.shot_id });
-  const { pack } = loadChapter(args);
+  const { pack, path: filePath } = loadChapter(args);
   if (!args.skip_gate) assertShotReady(pack, args.shot_id);
   const dirs = assetDirs(pack);
   const existing = resolveSelectedVideo(pack, dirs, args.shot_id);
@@ -375,7 +375,7 @@ export async function autodlVideoRef(
   }
   const shot = getShot(pack, args.shot_id);
   shot.video_approved = true;
-  saveStory(pack);
+  saveStory(pack, filePath);
   ok("成片工具", "多参考成片完成", { shot_id: args.shot_id, version: versionInfo?.version });
   return {
     ok: true,
@@ -438,7 +438,7 @@ export async function runBridgeShot(
 }
 
 export async function runLipsyncShot(
-  args: { story_id: string; shot_id: string },
+  args: { story_id: string; chapter_id?: string; shot_id: string },
   signal?: AbortSignal,
 ): Promise<ToolResult> {
   const { pack, path: filePath } = loadChapter(args);
@@ -524,13 +524,13 @@ export async function runChapterPipeline(
     const plan = resolvePlanPath(shot);
     step("章节流水线", "处理镜头", { shot_id: shot.shot_id, plan });
     if (steps.includes("video") && (plan === "video_ref" || plan === "grid")) {
-      results.push(await autodlVideoRef({ story_id: args.story_id, shot_id: shot.shot_id, force: args.force }, signal));
+      results.push(await autodlVideoRef({ story_id: args.story_id, chapter_id: args.chapter_id, shot_id: shot.shot_id, force: args.force }, signal));
     }
     if (steps.includes("bridge") && (plan === "bridge" || shot.bridge_from)) {
-      results.push(await runBridgeShot({ story_id: args.story_id, shot_id: shot.shot_id, force: args.force }, signal));
+      results.push(await runBridgeShot({ story_id: args.story_id, chapter_id: args.chapter_id, shot_id: shot.shot_id, force: args.force }, signal));
     }
     if (steps.includes("lipsync") && (plan === "lipsync" || shot.needs_lipsync)) {
-      results.push(await runLipsyncShot({ story_id: args.story_id, shot_id: shot.shot_id }, signal));
+      results.push(await runLipsyncShot({ story_id: args.story_id, chapter_id: args.chapter_id, shot_id: shot.shot_id }, signal));
     }
   }
   ok("章节流水线", "章节成片流程结束", { story_id: args.story_id, count: results.length });
