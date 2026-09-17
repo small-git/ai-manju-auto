@@ -4,8 +4,46 @@
 import { loadConfig } from "../config.js";
 import { requireKey } from "../keys.js";
 import type { StoryPack, StoryShot } from "../story.js";
-import { fail, ok, step } from "../zh-log.js";
+import { fail, ok, step, warn } from "../zh-log.js";
 
+/** 中转站把上游 SSE 流原样塞进 content 的兼容：解包 data: 帧拼回正文。 */
+function unwrapSse(text: string): string {
+  if (!/^\s*data:/m.test(text)) return text;
+  const parts: string[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t.startsWith("data:")) continue;
+    const payload = t.slice(5).trim();
+    if (!payload || payload === "[DONE]") continue;
+    try {
+      const j = JSON.parse(payload) as {
+        choices?: Array<{ delta?: { content?: string }; message?: { content?: string } }>;
+      };
+      const piece = j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.message?.content;
+      if (typeof piece === "string") parts.push(piece);
+    } catch {
+      /* 跳过非 JSON 帧 */
+    }
+  }
+  return parts.length ? parts.join("") : text;
+}
+
+/** 宽松提取 JSON：容忍 markdown 围栏与前后杂质。 */
+function parseJsonLoose<T>(text: string): T {
+  const cleaned = text.replace(/```(?:json)?/g, "").trim();
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      return JSON.parse(cleaned.slice(start, end + 1)) as T;
+    }
+    throw new Error(`LLM 返回非 JSON：${cleaned.slice(0, 200)}`);
+  }
+}
+
+/** 中转站偶发 SSE/502/空内容：显式 stream:false + 有限重试（429/5xx/空内容/解析失败可重试，4xx 直接失败）。 */
 async function chatJson<T>(opts: {
   system: string;
   user: unknown;
@@ -13,43 +51,69 @@ async function chatJson<T>(opts: {
   signal?: AbortSignal;
 }): Promise<T> {
   const cfg = loadConfig();
-  step("文案LLM", "正在请求 Chat Completions", { model: cfg.openaiChatModel });
   const apiKey = await requireKey("openai");
-  const signal = opts.signal ?? AbortSignal.timeout(180_000);
-  const resp = await fetch(`${cfg.openaiBaseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: cfg.openaiChatModel,
-      temperature: opts.temperature ?? 0.7,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: opts.system },
-        { role: "user", content: typeof opts.user === "string" ? opts.user : JSON.stringify(opts.user) },
-      ],
-    }),
-    signal,
-  });
-  const data = (await resp.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-    error?: { message?: string; code?: string };
-  };
-  if (!resp.ok) {
-    const msg = data.error?.message || JSON.stringify(data).slice(0, 400);
-    const code = data.error?.code ? `（${data.error.code}）` : "";
-    fail("文案LLM", `请求失败${code}`, { error: msg });
-    throw new Error(`文案 LLM 失败${code}: ${msg}`);
+  const maxAttempts = 3;
+  let lastErr: Error | null = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      step("文案LLM", "正在请求 Chat Completions", { model: cfg.openaiChatModel, attempt });
+      const signal = opts.signal ?? AbortSignal.timeout(180_000);
+      const resp = await fetch(`${cfg.openaiBaseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: cfg.openaiChatModel,
+          temperature: opts.temperature ?? 0.7,
+          stream: false,
+          response_format: { type: "json_object" },
+          messages: [
+            // 上游强制 json_object 时要求消息含小写 "json"
+            { role: "system", content: `${opts.system}\n请仅以 json 格式输出。` },
+            { role: "user", content: typeof opts.user === "string" ? opts.user : JSON.stringify(opts.user) },
+          ],
+        }),
+        signal,
+      });
+      const raw = await resp.text();
+      if (!resp.ok) {
+        const msg = raw.slice(0, 300);
+        const err = new Error(`文案 LLM HTTP ${resp.status}: ${msg}`);
+        // 4xx（除 429）属确定性错误，不重试
+        if (resp.status >= 400 && resp.status < 500 && resp.status !== 429) {
+          fail("文案LLM", "请求失败（不重试）", { error: msg });
+          throw Object.assign(err, { retryable: false });
+        }
+        throw Object.assign(err, { retryable: true });
+      }
+      let data: {
+        choices?: Array<{ message?: { content?: string } }>;
+        error?: { message?: string; code?: string };
+      };
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        // 整个响应就是 SSE 流：包一层便于统一解包
+        data = { choices: [{ message: { content: raw } }] };
+      }
+      let content = data.choices?.[0]?.message?.content || "";
+      content = unwrapSse(content).trim();
+      if (!content) throw Object.assign(new Error("文案 LLM 返回空内容"), { retryable: true });
+      ok("文案LLM", "已收到 JSON 响应", { chars: content.length });
+      return parseJsonLoose<T>(content);
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+      const retryable = (e as { retryable?: boolean })?.retryable !== false && !/不重试/.test(lastErr.message);
+      if (!retryable || attempt === maxAttempts) break;
+      const wait = attempt * 3000;
+      warn("文案LLM", "请求失败，退避后重试", { attempt, wait_ms: wait, error: lastErr.message.slice(0, 160) });
+      await new Promise((r) => setTimeout(r, wait));
+    }
   }
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) {
-    fail("文案LLM", "返回无内容");
-    throw new Error("文案 LLM 无内容");
-  }
-  ok("文案LLM", "已收到 JSON 响应", { chars: content.length });
-  return JSON.parse(content) as T;
+  fail("文案LLM", "请求最终失败", { error: lastErr?.message });
+  throw lastErr ?? new Error("文案 LLM 失败");
 }
 
 export type WritingGenerateKind = "continue" | "twist" | "revise";

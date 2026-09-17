@@ -22,11 +22,18 @@
       "logline": "运维小刚在漆黑加班夜里濒临猝死，却被屏幕黑洞卷入虚拟世界，并绑定「无敌加班成长系统」。"
     },
     "shandong_1994": {
-      "title": "山东小孩·第一步",
-      "chapter_id": "CH01",
-      "project_id": "shandong_1994",
-      "path": "stories/shandong_1994/story.json",
-      "logline": "一个出生在济宁农村的安静男孩，在村小学撤并的意外变故中，靠母亲悄悄攒下的车费迈出走向更大世界的第一步。"
+      "title": "山东小孩·平凡前半生",
+      "chapter_id": "CH02",
+      "project_id": "shandong_1994_ch02",
+      "path": "stories/shandong_1994/chapters/CH02.json",
+      "logline": "平凡第一次离开村庄走进镇小学，在陌生与拘谨中找到属于自己的座位。",
+      "chapters": {
+        "CH02": {
+          "project_id": "shandong_1994_ch02",
+          "path": "stories/shandong_1994/chapters/CH02.json",
+          "logline": "平凡第一次离开村庄走进镇小学，在陌生与拘谨中找到属于自己的座位。"
+        }
+      }
     }
   }
 }
