@@ -994,6 +994,10 @@ export async function writingExpandEpisodeTool(args: {
     writing_text: writingText,
     instruction: args.instruction,
   });
+  // 分镜已就位：草稿章自动转正（移除 draft 标记，可进成片校验）
+  if (pack.draft && pack.shots.length) {
+    delete pack.draft;
+  }
   const dest = saveStory(pack, filePath);
   return {
     ok: true,
