@@ -132,10 +132,13 @@ workflows:
 
   manhua_tts:
     workflow_id: indextts2-v1
-    description: "IndexTTS2 配音（工作流页核对入参）"
+    description: "IndexTTS2 配音（入参以工作流页为准；text_field/音频槽位可按需调整）"
     kind: tts
-    required: []
-    optional: []
+    required: [text]
+    optional: [emotion, seed]
+    text_field: text
+    ref_audio_slots: 1
+    ref_audio_prefix: ref_audio_
 
 stages:
   manhua_video: manhua_video_ref
@@ -144,3 +147,4 @@ stages:
   manhua_bridge: manhua_bridge
   manhua_lipsync: manhua_lipsync
   manhua_preview: manhua_video_t2v
+  manhua_tts: manhua_tts

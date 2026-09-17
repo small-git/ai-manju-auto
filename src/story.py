@@ -93,6 +93,8 @@ def validate_story_pack(pack: dict[str, Any]) -> list[str]:
         plan = sh.get("plan_path")
         if plan and plan not in ("video_ref", "bridge", "grid", "lipsync"):
             issues.append(f"{sid}: invalid plan_path {plan}")
+        if sh.get("grid_cell") and (plan or "video_ref") != "grid":
+            issues.append(f"{sid}: grid_cell 仅当 plan_path=grid 时使用")
         for url in sh.get("ref_images") or []:
             if url == "":
                 issues.append(f"{sid}: empty string in ref_images (forbidden)")
@@ -250,6 +252,13 @@ def expand_shot(
         job["last_frame"] = shot["last_frame"]
     if shot.get("still_url"):
         job["still_url"] = shot["still_url"]
+    if shot.get("audio_duration") is not None:
+        job["audio_duration"] = shot["audio_duration"]
+    for cid in cids:
+        vr = (chars.get(cid) or {}).get("voice_ref")
+        if vr:
+            job["voice_ref"] = vr
+            break
     # continuity defaults from environment
     st = job["state"]
     st.setdefault("location", env.get("name"))
@@ -266,7 +275,14 @@ def expand_story_pack(pack: dict[str, Any]) -> dict[str, Any]:
         raise StoryError("story pack invalid:\n- " + "\n- ".join(issues))
     chars = index_by_id(list(pack["characters"]))
     envs = index_by_id(list(pack["environments"]))
-    jobs = [expand_shot(pack, sh, chars=chars, envs=envs) for sh in pack["shots"]]
+    jobs: list[dict[str, Any]] = []
+    prev_state: dict[str, Any] | None = None
+    for sh in pack["shots"]:
+        job = expand_shot(pack, sh, chars=chars, envs=envs)
+        if prev_state:
+            job["state_prev"] = prev_state
+        prev_state = dict(job.get("state") or {})
+        jobs.append(job)
     return {
         "story_id": pack["story_id"],
         "chapter_id": pack.get("chapter_id"),
@@ -294,3 +310,41 @@ def derive_bridge_frames(
     first = job.get("first_frame") or src.get("last_frame") or src.get("still_url")
     last = job.get("last_frame") or job.get("still_url")
     return (first or None), (last or None)
+
+
+def assert_production_approved(pack: dict[str, Any], shot_ids: list[str] | None = None) -> None:
+    """成片审批门闸：未批准的角色定妆 / 静帧禁止进入成片（对齐 dsh gate.ts）。"""
+    chars = index_by_id(list(pack.get("characters") or []))
+    allow = set(shot_ids) if shot_ids else None
+    problems: list[str] = []
+    for sh in pack.get("shots") or []:
+        sid = sh.get("shot_id")
+        if allow is not None and sid not in allow:
+            continue
+        for cid in sh.get("character_ids") or []:
+            ch = chars.get(cid)
+            if ch and ch.get("approved") is False:
+                problems.append(
+                    f"{sid}: 角色 {cid}（{ch.get('name') or cid}）定妆未批准 approved=false"
+                )
+        if sh.get("still_url") and sh.get("still_approved") is False:
+            problems.append(f"{sid}: 静帧未批准 still_approved=false")
+    if problems:
+        raise StoryError("审批门闸未通过（请先在工作台批准）：\n- " + "\n- ".join(problems))
+
+
+def validate_state_continuity(pack: dict[str, Any]) -> list[str]:
+    """相邻镜 state 连续性检查：返回警告列表（不阻断，供复盘）。"""
+    warnings: list[str] = []
+    prev: tuple[str, dict[str, Any]] | None = None
+    for sh in pack.get("shots") or []:
+        sid = str(sh.get("shot_id") or "?")
+        st = dict(sh.get("state") or {})
+        if prev is not None:
+            psid, pst = prev
+            for key in ("wardrobe", "holding", "facing"):
+                pv, cv = pst.get(key), st.get(key)
+                if pv and cv and pv != cv:
+                    warnings.append(f"{sid}: state.{key} 与前镜 {psid} 不连续（{pv} → {cv}）")
+        prev = (sid, st)
+    return warnings

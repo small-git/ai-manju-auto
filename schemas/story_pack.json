@@ -33,7 +33,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["video", "bridge", "lipsync"]
+        "enum": ["audio", "video", "bridge", "lipsync"]
       },
       "default": ["video"]
     },
@@ -101,6 +101,10 @@
               "costume": { "type": "string" }
             },
             "additionalProperties": { "type": "string" }
+          },
+          "voice_ref": {
+            "type": "string",
+            "description": "角色配音参考音频公网 URL（TTS 音色克隆）"
           },
           "approved": {
             "type": "boolean",

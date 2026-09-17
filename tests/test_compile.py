@@ -63,3 +63,46 @@ def test_resolve_workflow_unknown_alias_raises():
 def test_with_style_skips_empty_parts():
     assert with_style("动作", "", "") == "动作"
     assert with_style("动作", "画风锁") == "画风锁。动作"
+
+
+def test_compile_body_tts_text_and_voice():
+    shot = {
+        "workflow": "manhua_tts",
+        "dialogue": "天亮前必须离开这座城。",
+        "emotion": "决意",
+        "ref_audios": ["http://x/voice.mp3"],
+    }
+    alias, workflow_id, body = compile_body(CFG, shot)
+    assert alias == "manhua_tts"
+    assert workflow_id == "indextts2-v1"
+    assert body["text"] == "天亮前必须离开这座城。"
+    assert body["ref_audio_0"] == "http://x/voice.mp3"
+    assert body["emotion"] == "决意"
+
+
+def test_compile_body_tts_missing_text_raises():
+    with pytest.raises(AutodlError):
+        compile_body(CFG, {"workflow": "manhua_tts"})
+
+
+def test_submit_and_finalize_split(tmp_path):
+    """submit_shot/finalize_shot 拆分后可独立复用（并发基础）。"""
+
+    class FakeClient:
+        def submit(self, workflow_id, body):
+            assert workflow_id == "minimax_h3_lightx2v_v5"
+            return "task_x"
+
+        def download_results(self, data, out_dir, stem):
+            p = tmp_path / f"{stem}_0.mp4"
+            p.write_bytes(b"x")
+            return [p]
+
+    from compile import finalize_shot, submit_shot
+
+    shot = {"shot_id": "S1", "workflow": "manhua_video_ref", "prompt": "动作", "ref_images": ["http://x/0.png"]}
+    pending = submit_shot(FakeClient(), shot, cfg=CFG)
+    assert pending["task_id"] == "task_x"
+    meta = finalize_shot(FakeClient(), pending, {"status": "SUCCESS", "duration": 5, "results": ["http://x/v.mp4"]}, tmp_path)
+    assert meta["status"] == "SUCCESS"
+    assert (tmp_path / "S1_meta.json").exists()

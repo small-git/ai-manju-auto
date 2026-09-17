@@ -42,6 +42,7 @@ copy .env.example .env
 | `manhua_bridge` | `minimax_h3_lightx2v` | 首尾帧衔接 |
 | `manhua_lipsync` | `minimax_h3_image_audio_to_video` | 对口型 |
 | `manhua_video_t2v` | `minimax_h3_lightx2v_no_pic` | 文生预览（勿主链） |
+| `manhua_tts` | `indextts2-v1` | IndexTTS2 配音（对白→音频） |
 
 ## 运行
 
@@ -59,9 +60,28 @@ python src/run_pipeline.py --story manhua_demo --retries 2          # 失败指�
 python src/run_pipeline.py --story manhua_demo --keep-going         # 单镜失败不中断（退出码 3）
 python src/run_pipeline.py --story manhua_demo --force              # 忽略已有产物重跑
 
+# 步骤与并发（默认并发：全部提交后统一轮询；--serial 强制串行）
+python src/run_pipeline.py --story manhua_demo --steps audio,video,bridge,lipsync
+python src/run_pipeline.py --story manhua_demo --serial
+
+# 批量补齐定妆/静帧资产（Qwen-Image 生图并回填公网 URL）
+python src/gen_story_assets.py --story manhua_demo --assets
+
 # 单镜 ShotJob
 python src/run_shot.py examples/shot_ref_video.json
 ```
+
+## 流水线阶段
+
+```text
+audio   TTS 配音：dialogue → 02_audio/（音色参考 characters[].voice_ref；产物 URL 自动链接给 lipsync）
+video   多参考成片 → 03_video/（成片前硬拦：characters.approved / shots.still_approved 未批准拒跑）
+bridge  镜间首尾帧 → 04_bridge/（缺省由相邻镜 still_url 派生）
+lipsync needs_lipsync 镜对口型 → 05_lipsync/
+export  自动导出 04_export/CH0x_timeline.json + CH0x.srt → scripts/export_jianying_draft.py 生成剪映草稿
+```
+
+报告：`pipeline_report.json` 含 `summary` 聚合（成功/失败/续跑跳过/API 耗时/产物数）与 `failures` 明细；校验时输出 state 连续性警告（不阻断）。
 
 产物：`runs/<story_id>/<chapter_id>/`（含 `expanded_shot_jobs.json`、`pipeline_report.json`）。
 

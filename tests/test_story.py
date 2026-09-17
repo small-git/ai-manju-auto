@@ -8,8 +8,10 @@ import pytest
 
 from story import (
     StoryError,
+    assert_production_approved,
     derive_bridge_frames,
     expand_story_pack,
+    validate_state_continuity,
     validate_story_pack,
 )
 
@@ -168,3 +170,73 @@ def test_derive_bridge_frames_missing_returns_none():
     first, last = derive_bridge_frames(job_b, {})
     assert first is None
     assert last is None
+
+
+def test_gate_blocks_unapproved_character():
+    pack = make_pack()
+    pack["characters"][0]["approved"] = False
+    with pytest.raises(StoryError):
+        assert_production_approved(pack)
+
+
+def test_gate_blocks_unapproved_still():
+    pack = make_pack()
+    pack["shots"][0]["still_url"] = "http://x/still.png"
+    pack["shots"][0]["still_approved"] = False
+    with pytest.raises(StoryError):
+        assert_production_approved(pack)
+
+
+def test_gate_passes_and_respects_shot_filter():
+    assert_production_approved(make_pack())  # 默认全批准，不抛
+    pack = make_pack()
+    pack["characters"][0]["approved"] = False
+    assert_production_approved(pack, shot_ids=["NOT_SELECTED"])  # 未选中镜头不触发
+
+
+def test_validate_grid_cell_requires_grid_plan():
+    pack = make_pack()
+    pack["shots"][0]["grid_cell"] = 3
+    issues = validate_story_pack(pack)
+    assert any("grid_cell" in i for i in issues)
+    pack["shots"][0]["plan_path"] = "grid"
+    assert validate_story_pack(pack) == []
+
+
+def test_state_continuity_warning():
+    pack = make_pack()
+    sh2 = copy.deepcopy(pack["shots"][0])
+    sh2["shot_id"] = "E01_S01_SH02"
+    pack["shots"][0]["state"] = {"wardrobe": "青衣", "holding": "竹简"}
+    sh2["state"] = {"wardrobe": "青衣", "holding": "长剑"}
+    pack["shots"].append(sh2)
+    warns = validate_state_continuity(pack)
+    assert any("holding" in w and "不连续" in w for w in warns)
+
+
+def test_state_continuity_ok_when_same():
+    pack = make_pack()
+    sh2 = copy.deepcopy(pack["shots"][0])
+    sh2["shot_id"] = "E01_S01_SH02"
+    pack["shots"][0]["state"] = {"holding": "竹简"}
+    sh2["state"] = {"holding": "竹简"}
+    pack["shots"].append(sh2)
+    assert validate_state_continuity(pack) == []
+
+
+def test_expand_injects_state_prev():
+    pack = make_pack()
+    sh2 = copy.deepcopy(pack["shots"][0])
+    sh2["shot_id"] = "E01_S01_SH02"
+    pack["shots"][0]["state"] = {"holding": "竹简"}
+    pack["shots"].append(sh2)
+    jobs = expand_story_pack(pack)["shot_jobs"]
+    assert "state_prev" not in jobs[0]
+    assert jobs[1]["state_prev"]["holding"] == "竹简"
+
+
+def test_expand_carries_voice_ref():
+    pack = make_pack()
+    pack["characters"][0]["voice_ref"] = "http://x/voice.mp3"
+    job = expand_story_pack(pack)["shot_jobs"][0]
+    assert job["voice_ref"] == "http://x/voice.mp3"

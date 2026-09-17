@@ -25,8 +25,12 @@ except ImportError:  # 包方式导入
 
 # 执行语义（批量成片必须保持）
 
+- 阶段执行统一走 `_execute_jobs()`：跳过已有 → 并发/串行 → 写报告。并发默认开（`_run_jobs_concurrent`：全部提交后统一轮询），`--serial` 回退串行。
+- 阶段顺序固定：`audio`(TTS) → `video` → `bridge` → `lipsync` → 自动导出 `04_export/`（timeline + SRT）。
+- 成片前必须过 `assert_production_approved()`：`characters[].approved` / `shots[].still_approved` 为 false 硬拦。
+- TTS 产物 URL 链接给 lipsync 的 `ref_audios`（短时 URL，仅同轮次有效）；音色参考取 `characters[].voice_ref`。
 - 断点续跑：`_load_existing_meta()` 判定成功产物（meta 状态 SUCCESS/COMPLETED/DONE 且文件齐全）自动跳过，`--force` 重跑。
-- 重试：`_run_with_retry()`，`wait = min(2**attempt * 5, 60)`。
+- 重试：`_run_with_retry()` / 并发内 `_retry_or_terminal()`，`wait = min(2**attempt * 5, 60)`。
 - Bridge 首尾帧：显式 `first_frame`/`last_frame` 优先，缺省由 `derive_bridge_frames()` 从相邻镜 `still_url` 派生。
 
 # 测试

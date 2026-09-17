@@ -92,6 +92,13 @@ def compile_body(cfg: dict[str, Any], shot: dict[str, Any], style_lock: str = ""
         if ad is None:
             ad = local_defaults.get("audio_duration", duration)
         body["audio_duration"] = int(ad)
+    if kind == "tts":
+        text_field = wf.get("text_field") or "text"
+        text = str(shot.get("dialogue") or shot.get("text") or "").strip()
+        if text:
+            body[text_field] = text
+        if shot.get("emotion"):
+            body["emotion"] = shot["emotion"]
 
     refs = list(shot.get("ref_images") or [])
     prefix = wf.get("ref_image_prefix", "ref_image_")
@@ -126,39 +133,47 @@ def compile_body(cfg: dict[str, Any], shot: dict[str, Any], style_lock: str = ""
     return alias, wf["workflow_id"], body
 
 
-def run_shot(
+def submit_shot(
     client: AutodlClient,
     shot: dict[str, Any],
-    out_dir: Path,
     *,
     cfg: dict[str, Any] | None = None,
     style_lock: str = "",
     identity_lock: str = "",
 ) -> dict[str, Any]:
+    """编译并提交单镜，返回 pending 记录（供并发轮询复用）。"""
     cfg = cfg or load_workflow_config()
     alias, workflow_id, body = compile_body(cfg, shot, style_lock, identity_lock)
     shot_id = shot.get("shot_id") or shot.get("id") or "shot"
     step(
         "成片",
-        "准备提交单镜",
+        "提交单镜",
         shot_id=shot_id,
         alias=alias,
         workflow_id=workflow_id,
         body_keys=list(body.keys()),
     )
-    try:
-        task_id = client.submit(workflow_id, body)
-        data = client.wait_result(task_id)
-        files = client.download_results(data, out_dir, stem=str(shot_id))
-    except Exception as e:
-        fail("成片", f"单镜 {shot_id} 执行中断", error=e)
-        raise
-    meta = {
+    task_id = client.submit(workflow_id, body)
+    return {
         "shot_id": shot_id,
         "workflow_alias": alias,
         "workflow_id": workflow_id,
         "task_id": task_id,
         "request_body": body,
+    }
+
+
+def finalize_shot(
+    client: AutodlClient,
+    pending: dict[str, Any],
+    data: dict[str, Any],
+    out_dir: Path,
+) -> dict[str, Any]:
+    """任务成功后：下载产物 + 写 meta。"""
+    shot_id = pending["shot_id"]
+    files = client.download_results(data, out_dir, stem=str(shot_id))
+    meta = {
+        **pending,
         "status": data.get("status"),
         "duration": data.get("duration"),
         "results": data.get("results"),
@@ -168,3 +183,22 @@ def run_shot(
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     ok("成片", "单镜完成", shot_id=shot_id, files=len(files), meta=str(meta_path))
     return meta
+
+
+def run_shot(
+    client: AutodlClient,
+    shot: dict[str, Any],
+    out_dir: Path,
+    *,
+    cfg: dict[str, Any] | None = None,
+    style_lock: str = "",
+    identity_lock: str = "",
+) -> dict[str, Any]:
+    shot_id = shot.get("shot_id") or shot.get("id") or "shot"
+    try:
+        pending = submit_shot(client, shot, cfg=cfg, style_lock=style_lock, identity_lock=identity_lock)
+        data = client.wait_result(pending["task_id"])
+        return finalize_shot(client, pending, data, out_dir)
+    except Exception as e:
+        fail("成片", f"单镜 {shot_id} 执行中断", error=e)
+        raise

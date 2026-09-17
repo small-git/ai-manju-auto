@@ -34,13 +34,14 @@ StoryPack（schemas/story_pack.json）
   environments[].scene_card + establishing URL   ← 环境冻结
   shots[].action / camera / state                ← 单镜只改动作运镜
         ↓ expand_story_pack()
-  ShotJob[]（身份锁 + 画风锁 + ref_images 自动组装）
-        ↓
-  [外部] 定妆/静帧 URL 齐备后
-  → [v5 / zm_u24] 多参考成片（768p横）→ clips/
-  → [lightx2v] bridge_from 镜用首尾帧修缝
-  → （可选）needs_lipsync 对口型
-  → 拼接 / 字幕 / 导出
+  ShotJob[]（身份锁 + 画风锁 + ref_images 自动组装 + state_prev 连续性账本）
+        ↓ 审批门闸：approved/still_approved 未批准硬拦
+  [外部] 定妆/静帧 URL 齐备后（可 gen_story_assets.py --assets 批量补齐）
+  → [audio]   IndexTTS2 配音（dialogue → 02_audio，产物 URL 链接 lipsync）
+  → [video]   多参考成片（768p横，默认并发提交，--serial 串行）→ 03_video/
+  → [bridge]  bridge_from 镜首尾帧修缝（可由相邻镜 still_url 派生）→ 04_bridge/
+  → [lipsync] needs_lipsync 对口型 → 05_lipsync/
+  → 自动导出 04_export/CH0x_timeline.json + CH0x.srt → scripts/export_jianying_draft.py 剪映草稿
 ```
 
 示例：`examples/manhua_demo/story_pack.json`（E01 三镜：入画 → 望河 → 决意）。
