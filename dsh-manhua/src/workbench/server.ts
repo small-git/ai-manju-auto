@@ -7,7 +7,16 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { RUNS_DIR, STORIES_DIR, ensureDir } from "../paths.js";
-import { getProp, loadStory, listStyleLocks, saveStory, type StoryPack } from "../story.js";
+import {
+  createChapter,
+  getProp,
+  listChapters,
+  loadStory,
+  listStyleLocks,
+  saveStory,
+  syncUniverse,
+  type StoryPack,
+} from "../story.js";
 import {
   approveTool,
   assetDirs,
@@ -158,6 +167,12 @@ function listStories() {
     .map((name) => {
       try {
         const pack = JSON.parse(fs.readFileSync(path.join(STORIES_DIR, name, "story.json"), "utf8")) as StoryPack;
+        let chapters: ReturnType<typeof listChapters> = [];
+        try {
+          chapters = listChapters(pack.story_id || name);
+        } catch {
+          /* 章节列表失败不阻塞故事列表 */
+        }
         return {
           story_id: pack.story_id || name,
           title: pack.title,
@@ -166,15 +181,16 @@ function listStories() {
           characters: pack.characters?.length || 0,
           props: pack.props?.length || 0,
           shots: pack.shots?.length || 0,
+          chapters,
         };
       } catch {
-        return { story_id: name, title: name, characters: 0, props: 0, shots: 0 };
+        return { story_id: name, title: name, characters: 0, props: 0, shots: 0, chapters: [] };
       }
     });
 }
 
-function boardForStory(storyId: string) {
-  const { pack, path: storyPath } = loadStory(storyId);
+function boardForStory(storyId: string, chapterId?: string) {
+  const { pack, path: storyPath } = loadStory(storyId, chapterId);
   const dirs = assetDirs(pack);
   const gate = checkChapterReady(pack);
   const plan = buildChapterPlan(pack);
@@ -312,8 +328,8 @@ function boardForStory(storyId: string) {
   };
 }
 
-async function boardAsync(storyId: string) {
-  const board = boardForStory(storyId);
+async function boardAsync(storyId: string, chapterId?: string) {
+  const board = boardForStory(storyId, chapterId);
   const providers = await providersTool();
   return { ...board, providers: providers.providers, style_locks: providers.style_locks || board.style_locks };
 }
@@ -329,10 +345,10 @@ function findFfmpeg(): string {
   throw new Error("未找到 ffmpeg，无法出片拼接");
 }
 
-function exportChapter(storyId: string) {
-  const { pack } = loadStory(storyId);
+function exportChapter(storyId: string, chapterId?: string) {
+  const { pack } = loadStory(storyId, chapterId);
   const dirs = assetDirs(pack);
-  const board = boardForStory(storyId);
+  const board = boardForStory(storyId, chapterId);
   const missing = board.export.missing_shots;
   if (missing.length) {
     throw new Error(`以下镜头还没有成片，无法出片：${missing.join(", ")}`);
@@ -362,8 +378,15 @@ function exportChapter(storyId: string) {
   };
 }
 
-async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pathname: string): Promise<void> {
+function chapterOf(body: Json): string | undefined {
+  const c = body.chapter_id;
+  return c ? String(c) : undefined;
+}
+
+async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<void> {
+  const pathname = url.pathname;
   const method = req.method || "GET";
+  const chapterQ = url.searchParams.get("chapter_id") || undefined;
   const skipNoise = pathname === "/api/health" || pathname.startsWith("/api/media/");
   if (!skipNoise) step("工作台", "收到请求", { method, path: pathname });
   try {
@@ -430,121 +453,151 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
       sendJson(res, 200, { ok: true, stories: listStories() });
       return;
     }
+    if (method === "GET" && pathname.startsWith("/api/stories/") && pathname.endsWith("/chapters")) {
+      const storyId = decodeURIComponent(pathname.slice("/api/stories/".length, -"/chapters".length));
+      sendJson(res, 200, { ok: true, story_id: storyId, chapters: listChapters(storyId) });
+      return;
+    }
+    if (method === "POST" && pathname === "/api/chapters") {
+      const body = await readJson(req);
+      const storyId = String(body.story_id || "");
+      const result = createChapter(storyId, String(body.chapter_id || ""), {
+        from_chapter: body.from_chapter ? String(body.from_chapter) : undefined,
+        title: body.title ? String(body.title) : undefined,
+        logline: body.logline ? String(body.logline) : undefined,
+        synopsis: body.synopsis ? String(body.synopsis) : undefined,
+        project_id: body.project_id ? String(body.project_id) : undefined,
+      });
+      sendJson(res, 200, {
+        ok: true,
+        chapter_id: result.pack.chapter_id,
+        path: result.path,
+        chapters: listChapters(storyId),
+      });
+      return;
+    }
+    if (method === "POST" && pathname === "/api/chapters/sync-universe") {
+      const body = await readJson(req);
+      const storyId = String(body.story_id || "");
+      const result = syncUniverse(storyId, body.from_chapter ? String(body.from_chapter) : undefined);
+      sendJson(res, 200, { ok: true, ...result, chapters: listChapters(storyId) });
+      return;
+    }
     if (method === "GET" && pathname.startsWith("/api/board/")) {
       const storyId = decodeURIComponent(pathname.slice("/api/board/".length));
-      sendJson(res, 200, await boardAsync(storyId));
+      sendJson(res, 200, await boardAsync(storyId, chapterQ));
       return;
     }
     if (method === "GET" && pathname.startsWith("/api/stories/")) {
-      sendJson(res, 200, await storyLoad({ story_id: decodeURIComponent(pathname.slice("/api/stories/".length)) }));
+      sendJson(res, 200, await storyLoad({ story_id: decodeURIComponent(pathname.slice("/api/stories/".length)), chapter_id: chapterQ }));
       return;
     }
     if (method === "POST" && pathname === "/api/sheet") {
       const body = await readJson(req);
       const result = await characterSheetGpt({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         character_id: String(body.character_id || ""),
         size: body.size ? String(body.size) : undefined,
       });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "POST" && pathname === "/api/still") {
       const body = await readJson(req);
       const result = await shotStillGemini({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         shot_id: String(body.shot_id || ""),
         as_grid: !!body.as_grid,
       });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "POST" && pathname === "/api/grid-cell") {
       const body = await readJson(req);
       const result = await selectGridCellTool({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         shot_id: String(body.shot_id || ""),
         cell: Number(body.cell),
       });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "POST" && pathname === "/api/video") {
       const body = await readJson(req);
       const result = await autodlVideoRef({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         shot_id: String(body.shot_id || ""),
         duration: body.duration != null ? Number(body.duration) : undefined,
         resolution: body.resolution ? String(body.resolution) : undefined,
         workflow_id: body.workflow_id ? String(body.workflow_id) : undefined,
         force: !!body.force,
       });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "POST" && pathname === "/api/pipeline") {
       const body = await readJson(req);
       const result = await runChapterPipeline({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         force: !!body.force,
         shot_ids: Array.isArray(body.shot_ids) ? body.shot_ids.map(String) : undefined,
       });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "POST" && pathname === "/api/tts") {
       const body = await readJson(req);
       const result = await shotTts({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         shot_id: String(body.shot_id || ""),
         voice: body.voice ? String(body.voice) : undefined,
       });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "GET" && pathname.startsWith("/api/gate/")) {
-      sendJson(res, 200, await gateCheckTool({ story_id: decodeURIComponent(pathname.slice("/api/gate/".length)) }));
+      sendJson(res, 200, await gateCheckTool({ story_id: decodeURIComponent(pathname.slice("/api/gate/".length)), chapter_id: chapterQ }));
       return;
     }
     if (method === "POST" && pathname === "/api/plan") {
       const body = await readJson(req);
       const result = await planUpdateTool({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         shot_id: String(body.shot_id || ""),
         plan_path: body.plan_path as "video_ref" | "bridge" | "grid" | "lipsync" | undefined,
         bridge_from: body.bridge_from != null ? String(body.bridge_from) : undefined,
         needs_lipsync: body.needs_lipsync != null ? !!body.needs_lipsync : undefined,
         plan_notes: body.plan_notes ? String(body.plan_notes) : undefined,
       });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "POST" && pathname === "/api/auto-bridge") {
       const body = await readJson(req);
       const result = await autoBridgeTool({ story_id: String(body.story_id || "") });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "POST" && pathname === "/api/approve") {
       const body = await readJson(req);
       const result = await approveTool({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         kind: body.kind as "character" | "still" | "video",
         id: String(body.id || ""),
         approved: !!body.approved,
       });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "POST" && pathname === "/api/select-version") {
       const body = await readJson(req);
       const result = await selectVersionTool({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         shot_id: String(body.shot_id || ""),
         kind: body.kind as "still" | "video",
         version: String(body.version || ""),
       });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "POST" && pathname === "/api/prompt-preview") {
@@ -552,14 +605,14 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
       sendJson(
         res,
         200,
-        await promptPreviewTool({ story_id: String(body.story_id || ""), shot_id: String(body.shot_id || "") }),
+        await promptPreviewTool({ story_id: String(body.story_id || ""), chapter_id: chapterOf(body), shot_id: String(body.shot_id || "") }),
       );
       return;
     }
     if (method === "POST" && pathname === "/api/prop") {
       const body = await readJson(req);
       const storyId = String(body.story_id || "");
-      const { pack, path: storyPath } = loadStory(storyId);
+      const { pack, path: storyPath } = loadStory(storyId, chapterOf(body));
       const propId = String(body.prop_id || "");
       const prop = getProp(pack, propId);
       if (body.sheet_url) {
@@ -571,7 +624,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
     }
     if (method === "POST" && pathname === "/api/export") {
       const body = await readJson(req);
-      sendJson(res, 200, exportChapter(String(body.story_id || "")));
+      sendJson(res, 200, exportChapter(String(body.story_id || ""), chapterOf(body)));
       return;
     }
     if (method === "POST" && pathname === "/api/timeline") {
@@ -585,7 +638,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
         res,
         200,
         await chapterTtsTool({
-          story_id: String(body.story_id || ""),
+          story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
           force: !!body.force,
         }),
       );
@@ -597,7 +650,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
         res,
         200,
         await chapterDeliverTool({
-          story_id: String(body.story_id || ""),
+          story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
           force_tts: !!body.force_tts,
           skip_tts: !!body.skip_tts,
           skip_mux: !!body.skip_mux,
@@ -613,7 +666,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
         res,
         200,
         await jianyingExportTool({
-          story_id: String(body.story_id || ""),
+          story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
           draft_dir: body.draft_dir ? String(body.draft_dir) : undefined,
           draft_name: body.draft_name ? String(body.draft_name) : undefined,
         }),
@@ -633,7 +686,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
     if (method === "POST" && pathname === "/api/expand-story") {
       const body = await readJson(req);
       const result = await expandStoryTool({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         logline: String(body.logline || ""),
         synopsis: String(body.synopsis || ""),
         title: body.title ? String(body.title) : undefined,
@@ -653,7 +706,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
         res,
         200,
         await writingSeedTool({
-          story_id: String(body.story_id || ""),
+          story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
           source_text: String(body.source_text || ""),
           title: body.title ? String(body.title) : undefined,
           logline: body.logline ? String(body.logline) : undefined,
@@ -667,7 +720,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
         res,
         200,
         await writingGenerateTool({
-          story_id: String(body.story_id || ""),
+          story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
           kind: String(body.kind || "continue") as "continue" | "twist" | "revise",
           instruction: body.instruction ? String(body.instruction) : undefined,
           target_chars: body.target_chars != null ? Number(body.target_chars) : undefined,
@@ -681,7 +734,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
         res,
         200,
         await writingAdoptTool({
-          story_id: String(body.story_id || ""),
+          story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
           draft_id: body.draft_id ? String(body.draft_id) : undefined,
           mode: body.mode === "append" ? "append" : "replace",
         }),
@@ -691,16 +744,16 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
     if (method === "POST" && pathname === "/api/writing/apply-synopsis") {
       const body = await readJson(req);
       const result = await writingApplySynopsisTool({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         draft_id: body.draft_id ? String(body.draft_id) : undefined,
       });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "POST" && pathname === "/api/writing/expand-episode") {
       const body = await readJson(req);
       const result = await writingExpandEpisodeTool({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         draft_id: body.draft_id ? String(body.draft_id) : undefined,
         instruction: body.instruction ? String(body.instruction) : undefined,
         create_if_missing: body.create_if_missing !== false,
@@ -709,7 +762,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
       });
       let board = null;
       try {
-        board = await boardAsync(String(body.story_id));
+        board = await boardAsync(String(body.story_id), chapterOf(body));
       } catch {
         /* ignore */
       }
@@ -719,10 +772,10 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
     if (method === "POST" && pathname === "/api/style-lock") {
       const body = await readJson(req);
       const result = await setStyleLockTool({
-        story_id: String(body.story_id || ""),
+        story_id: String(body.story_id || ""), chapter_id: chapterOf(body),
         style_lock: String(body.style_lock || ""),
       });
-      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id)) });
+      sendJson(res, 200, { ...result, board: await boardAsync(String(body.story_id), chapterOf(body)) });
       return;
     }
     if (method === "POST" && pathname === "/api/providers") {
@@ -749,7 +802,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, pa
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || "/", `http://${HOST}:${PORT}`);
   if (url.pathname.startsWith("/api/")) {
-    void handleApi(req, res, url.pathname);
+    void handleApi(req, res, url);
     return;
   }
   serveStatic(res, url.pathname);

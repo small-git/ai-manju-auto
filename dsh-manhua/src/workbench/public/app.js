@@ -1,5 +1,7 @@
 const state = {
   storyId: "",
+  chapterId: "",
+  chapters: [],
   board: null,
   keys: null,
   writing: null,
@@ -8,7 +10,7 @@ const state = {
 const MODS = {
   keys: { title: "密钥管理", desc: "密钥、中转站、模型与连通测试" },
   writing: { title: "文案工作室", desc: "主线/小说续写 · 反转 · 写回剧本 · 拆下一集" },
-  stories: { title: "故事管理", desc: "故事集、智能拆剧、画风" },
+  stories: { title: "故事管理", desc: "故事集、章节管理、智能拆剧、画风" },
   sheets: { title: "定妆管理", desc: "角色定妆生成与审批" },
   props: { title: "道具管理", desc: "道具/线索资产与公网地址" },
   stills: { title: "分镜管理", desc: "镜头卡预览 · 动作/运镜/对白细节 · 九宫格" },
@@ -57,6 +59,23 @@ function log(msg) {
 }
 
 async function api(path, options = {}) {
+  // 章节作用域：已选章节时，自动为带 story_id 的请求附上 chapter_id（显式给出则不覆盖）
+  if (state.chapterId) {
+    if (options.body && typeof options.body === "string") {
+      try {
+        const body = JSON.parse(options.body);
+        if (body && typeof body === "object" && "story_id" in body && !("chapter_id" in body)) {
+          body.chapter_id = state.chapterId;
+          options = { ...options, body: JSON.stringify(body) };
+        }
+      } catch {
+        /* 非 JSON body 不处理 */
+      }
+    } else if (!options.body && path.startsWith("/api/")) {
+      const sep = path.includes("?") ? "&" : "?";
+      path += `${sep}chapter_id=${encodeURIComponent(state.chapterId)}`;
+    }
+  }
   const res = await fetch(path, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
@@ -786,18 +805,66 @@ async function refreshStories() {
 async function enterStory(storyId, opts = {}) {
   const id = (storyId || $("global-story").value || "").trim();
   if (!id) return log("请选择故事集");
+  if (id !== state.storyId) state.chapterId = ""; // 换故事回到默认章
   state.board = await api(`/api/board/${encodeURIComponent(id)}`);
   state.storyId = id;
   $("global-story").value = id;
   if ($("writing-story-id")) $("writing-story-id").value = id;
   renderAllBoard();
   try {
+    await refreshChapters();
+  } catch {
+    /* 章节列表可选 */
+  }
+  try {
     await loadWriting();
   } catch {
     /* writing optional */
   }
-  log(`已进入故事集：${id}`);
+  log(`已进入故事集：${id}（章节 ${state.board.chapter_id}）`);
   if (!opts.keepMod) showMod(opts.mod || "stories");
+}
+
+async function refreshChapters() {
+  if (!state.storyId) return;
+  const data = await api(`/api/stories/${encodeURIComponent(state.storyId)}/chapters`);
+  renderChapters(data.chapters || []);
+}
+
+function renderChapters(list) {
+  state.chapters = list;
+  const sel = $("global-chapter");
+  sel.innerHTML = list
+    .map(
+      (c) =>
+        `<option value="${c.chapter_id}">${c.chapter_id}${c.is_default ? "（默认）" : ""}${c.draft ? "·草稿" : ""}</option>`,
+    )
+    .join("");
+  sel.value = state.chapterId || state.board?.chapter_id || "";
+  $("chapters-tbody").innerHTML = list
+    .map(
+      (c) => `<tr>
+      <td><strong>${c.chapter_id}</strong>${c.is_default ? ' <span class="tag ok">默认</span>' : ""}</td>
+      <td>${c.title || "-"}</td>
+      <td>${c.episodes}</td>
+      <td>${c.shots}</td>
+      <td>${c.draft ? '<span class="tag bad">草稿</span>' : '<span class="tag ok">可制片</span>'}</td>
+      <td><button class="btn small" data-enter-chapter="${c.chapter_id}">进入</button></td>
+    </tr>`,
+    )
+    .join("");
+  $("chapters-tbody").querySelectorAll("[data-enter-chapter]").forEach((btn) => {
+    btn.onclick = () => enterChapter(btn.dataset.enterChapter).catch((e) => log(e.message));
+  });
+}
+
+async function enterChapter(chapterId) {
+  if (!state.storyId) return log("请先进入故事集");
+  state.chapterId = (chapterId || "").trim();
+  state.board = await api(`/api/board/${encodeURIComponent(state.storyId)}`);
+  $("global-chapter").value = state.chapterId || state.board.chapter_id;
+  renderAllBoard();
+  log(`已进入章节：${state.board.chapter_id}${state.board.chapter_id !== chapterId ? "（回退默认章）" : ""}`);
 }
 
 document.querySelectorAll(".nav-item").forEach((btn) => {
@@ -811,6 +878,41 @@ document.querySelectorAll(".nav-item").forEach((btn) => {
 });
 
 $("btn-bind-story").onclick = () => enterStory();
+$("global-chapter").onchange = () => enterChapter($("global-chapter").value).catch((e) => log(e.message));
+$("btn-refresh-chapters").onclick = () =>
+  refreshChapters().then(() => log("章节列表已刷新")).catch((e) => log(e.message));
+$("btn-chapter-create").onclick = async () => {
+  try {
+    const chapterId = $("chapter-new-id").value.trim();
+    if (!chapterId) throw new Error("请填写新章节 ID（如 CH02）");
+    const data = await api("/api/chapters", {
+      method: "POST",
+      body: JSON.stringify({
+        story_id: requireStory(),
+        chapter_id: chapterId,
+        title: $("chapter-new-title").value.trim() || undefined,
+        logline: $("chapter-new-logline").value.trim() || undefined,
+      }),
+    });
+    $("chapter-result").textContent = JSON.stringify(data, null, 2);
+    await refreshChapters();
+    log(`章节已创建：${data.chapter_id}（草稿，后续走文案/分镜流程填充）`);
+  } catch (e) {
+    log(e.message);
+  }
+};
+$("btn-chapter-sync").onclick = async () => {
+  try {
+    const data = await api("/api/chapters/sync-universe", {
+      method: "POST",
+      body: JSON.stringify({ story_id: requireStory(), from_chapter: state.board?.chapter_id || undefined }),
+    });
+    $("chapter-result").textContent = JSON.stringify(data, null, 2);
+    log(`宇宙已同步到：${(data.updated || []).join(", ") || "（无其他章节）"}`);
+  } catch (e) {
+    log(e.message);
+  }
+};
 $("btn-refresh-keys").onclick = () => refreshKeys().then(() => log("密钥状态已刷新")).catch((e) => log(e.message));
 $("btn-refresh-stories").onclick = () => refreshStories().then(() => log("故事列表已刷新")).catch((e) => log(e.message));
 ["sheets", "props", "stills", "plan", "videos", "canvas", "export"].forEach((name) => {

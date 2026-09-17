@@ -49,25 +49,64 @@ def register_story(pack: dict[str, Any], pack_path: Path | None = None) -> None:
     rel = _to_repo_relative(pack_path)
     idx = load_index()
     stories = idx.setdefault("stories", {})
-    stories[story_id] = {
-        "title": pack.get("title") or story_id,
-        "chapter_id": pack.get("chapter_id"),
-        "project_id": pack.get("project_id"),
-        "path": rel,
-        "logline": (pack.get("script") or {}).get("logline"),
-    }
+    entry = dict(stories.get(story_id) or {})
+    # 故事→章节两级索引；顶层字段保留为"最近注册章"以兼容旧消费方
+    chapters = entry.setdefault("chapters", {})
+    chapter_id = pack.get("chapter_id")
+    if chapter_id:
+        chapters[chapter_id] = {
+            "project_id": pack.get("project_id"),
+            "path": rel,
+            "logline": (pack.get("script") or {}).get("logline"),
+        }
+    entry.update(
+        {
+            "title": pack.get("title") or entry.get("title") or story_id,
+            "chapter_id": chapter_id,
+            "project_id": pack.get("project_id"),
+            "path": rel,
+            "logline": (pack.get("script") or {}).get("logline"),
+        }
+    )
+    stories[story_id] = entry
     save_index(idx)
-    ok("故事注册", "已写入索引", story_id=story_id, path=rel)
+    ok("故事注册", "已写入索引", story_id=story_id, chapter_id=chapter_id, path=rel)
 
 
-def resolve_story_pack(story_id: str, pack_path: Path | None = None) -> tuple[dict[str, Any], Path]:
-    """Load a story pack only by explicit story_id (and optional path)."""
+def chapter_pack_path(story_id: str, chapter_id: str) -> Path:
+    """章节包寻址：stories/<id>/chapters/<chapter_id>.json 优先；默认章 story.json 兜底。"""
+    base = STORIES_DIR / story_id
+    cand = base / "chapters" / f"{chapter_id}.json"
+    if cand.exists():
+        return cand
+    default = base / "story.json"
+    if default.exists():
+        try:
+            if json.loads(default.read_text(encoding="utf-8")).get("chapter_id") == chapter_id:
+                return default
+        except Exception:
+            pass
+    fail("故事加载", "章节文件不存在", story_id=story_id, chapter_id=chapter_id)
+    raise StoryError(
+        f"章节不存在: {story_id}/{chapter_id}（已找 {cand} 与 {default}）。"
+        "可在工作台「章节管理」新建章节。"
+    )
+
+
+def resolve_story_pack(
+    story_id: str,
+    pack_path: Path | None = None,
+    chapter_id: str | None = None,
+) -> tuple[dict[str, Any], Path]:
+    """Load a story pack only by explicit story_id（可选 chapter_id 定位章节包）。"""
     if not story_id or not str(story_id).strip():
         fail("故事加载", "未指定 --story")
         raise StoryError("必须显式指定 --story <story_id>，禁止无引用跨故事生成")
 
-    step("故事加载", "正在解析故事包", story_id=story_id)
+    step("故事加载", "正在解析故事包", story_id=story_id, chapter_id=chapter_id or "(默认章)")
     path: Path | None = pack_path
+    if path is None and chapter_id:
+        path = chapter_pack_path(story_id, chapter_id)
     if path is None:
         idx = load_index()
         meta = (idx.get("stories") or {}).get(story_id)
@@ -109,6 +148,16 @@ def resolve_story_pack(story_id: str, pack_path: Path | None = None) -> tuple[di
         raise StoryError(
             f"故事引用不匹配：命令 --story={story_id}，文件 story_id={pack.get('story_id')}。"
             "禁止用 A 故事引用生成 B 故事成片。"
+        )
+    if chapter_id and pack.get("chapter_id") != chapter_id:
+        fail(
+            "故事加载",
+            "章节引用不匹配",
+            chapter_id=chapter_id,
+            file_chapter_id=pack.get("chapter_id"),
+        )
+        raise StoryError(
+            f"章节引用不匹配：--chapter={chapter_id}，文件 chapter_id={pack.get('chapter_id')}"
         )
     issues = validate_story_pack(pack)
     if issues:

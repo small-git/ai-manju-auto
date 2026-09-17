@@ -19,5 +19,8 @@ Schema：`schemas/story_pack.json`。任何修改必须能通过 `validate_story
 
 # 注册与同步
 
-- 规范路径：`stories/<story_id>/story.json`；校验通过自动注册进 `stories/index.json`（相对路径）。
+- 规范路径：默认章 `stories/<story_id>/story.json`；更多章节 `stories/<story_id>/chapters/<CHAPTER_ID>.json`。
+- 章节包是自包含 StoryPack（新建时从源章克隆 characters/environments/props/style_lock，剧本分镜独立）。
+- `draft: true` 的章节允许空分镜（TS 校验放行，供工作台编辑）；Python 成片校验不放行，填充分镜后删除 `draft` 转正。
+- 校验通过自动注册进 `stories/index.json`（故事→章节两级，顶层字段为最近注册章）。
 - `stories/` 注册包与 `examples/` 示例包内容必须保持同步，改一边要同步另一边。

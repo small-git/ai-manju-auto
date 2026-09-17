@@ -74,6 +74,12 @@ python src/run_pipeline.py --story manhua_demo --shots E01_S01_SH03   # 成片�
 
 成片前硬拦：出场角色公网 sheet + 已批准；道具公网 sheet；静帧或环境 establishing；无空串 ref。
 
+### 章节管理（故事 → 章节两级）
+
+- 默认章 `stories/<story_id>/story.json`；新章节 `stories/<story_id>/chapters/<CHAPTER_ID>.json`（自包含 StoryPack，克隆宇宙、剧本分镜独立）。
+- 工作台「故事管理 → 章节管理」新建/进入/宇宙同步；所有下游 API 与工具接受 `chapter_id`（缺省默认章）。
+- CLI 对应 `--story <id> --chapter CH02`；Python/TS 两侧 `index.json` 均为故事→章节两级索引。
+
 ## 开源项目对照（完整漫剧规则同源）
 
 | 项目 | 价值 | 链接 |

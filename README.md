@@ -83,6 +83,15 @@ export  自动导出 04_export/CH0x_timeline.json + CH0x.srt → scripts/export_
 
 报告：`pipeline_report.json` 含 `summary` 聚合（成功/失败/续跑跳过/API 耗时/产物数）与 `failures` 明细；校验时输出 state 连续性警告（不阻断）。
 
+## 章节管理
+
+- 默认章：`stories/<story_id>/story.json`；更多章节放 `stories/<story_id>/chapters/<CHAPTER_ID>.json`。
+- 工作台「故事管理 → 章节管理」：新建章节（克隆人物/环境/道具宇宙，剧本分镜独立，draft 待填充）、进入章节、宇宙同步（当前章资产 → 其余章）。
+- 后续流程（定妆/分镜/门闸/成片/出片）全部按 `(story_id, chapter_id)` 寻址；产物目录天然章节隔离 `runs/<story_id>/<chapter_id>/`。
+- CLI：`python src/run_pipeline.py --story <id> --chapter CH02 ...`（缺省为默认章）。
+- draft 章节（空分镜）可被工作台打开编辑，但过不了成片校验；填充分镜后删除 `draft` 即转正。
+- `stories/index.json` 为故事→章节两级索引（顶层字段保留为最近注册章，兼容旧消费方）。
+
 产物：`runs/<story_id>/<chapter_id>/`（含 `expanded_shot_jobs.json`、`pipeline_report.json`）。
 
 > 成片前置：出场 `characters`/`props` 的 `ref_images` 与各镜 `still_url` 必须是**公网 URL**（本地文件不被 AutoDL 接受）。可用 `python src/gen_story_assets.py --story <id> --shot <shot_id> [--also-sheet]` 生图并自动回填；Bridge 首尾帧缺省时自动由相邻镜 `still_url` 派生。

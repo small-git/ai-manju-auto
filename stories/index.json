@@ -5,7 +5,14 @@
       "chapter_id": "CH01",
       "project_id": "linzhou_e01",
       "path": "stories/manhua_demo/story.json",
-      "logline": "少年林舟雨夜立于江南石桥，手握竹简，决意启程追查失踪的师门秘录。"
+      "logline": "少年林舟雨夜立于江南石桥，手握竹简，决意启程追查失踪的师门秘录。",
+      "chapters": {
+        "CH01": {
+          "project_id": "linzhou_e01",
+          "path": "stories/manhua_demo/story.json",
+          "logline": "少年林舟雨夜立于江南石桥，手握竹简，决意启程追查失踪的师门秘录。"
+        }
+      }
     },
     "overtime_system": {
       "title": "无敌加班成长系统·第一章：猝死边缘的黑洞",

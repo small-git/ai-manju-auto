@@ -76,7 +76,9 @@ export type StoryPack = {
   style_lock?: string;
   resolution?: string;
   video_workflow?: string;
-  steps?: Array<"video" | "bridge" | "lipsync" | string>;
+  steps?: Array<"audio" | "video" | "bridge" | "lipsync" | string>;
+  /** 章节管理新建的草稿章：允许空分镜，待后续流程填充 */
+  draft?: boolean;
   script: Record<string, unknown>;
   characters: StoryCharacter[];
   environments: StoryEnvironment[];
@@ -92,15 +94,36 @@ export class StoryError extends Error {
   }
 }
 
-export function storyPath(storyId: string): string {
+export function storyPath(storyId: string, chapterId?: string): string {
+  if (chapterId?.trim()) {
+    const cid = chapterId.trim();
+    const chapterFile = chapterFilePath(storyId, cid);
+    if (fs.existsSync(chapterFile)) return chapterFile;
+    // 默认章 story.json 若即该章则兜底
+    const defaultFile = path.join(STORIES_DIR, storyId, "story.json");
+    if (fs.existsSync(defaultFile)) {
+      try {
+        const p = JSON.parse(fs.readFileSync(defaultFile, "utf8")) as { chapter_id?: string };
+        if (p?.chapter_id === cid) return defaultFile;
+      } catch {
+        /* fallthrough */
+      }
+    }
+    throw new StoryError(`章节不存在: ${storyId}/${cid}（可在「章节管理」新建）`);
+  }
   return path.join(STORIES_DIR, storyId, "story.json");
 }
 
-export function loadStory(storyId: string): { pack: StoryPack; path: string } {
+/** 新章节的目标文件（chapters/<chapter_id>.json），创建/保存时用。 */
+export function chapterFilePath(storyId: string, chapterId: string): string {
+  return path.join(STORIES_DIR, storyId, "chapters", `${chapterId}.json`);
+}
+
+export function loadStory(storyId: string, chapterId?: string): { pack: StoryPack; path: string } {
   if (!storyId?.trim()) {
     throw new StoryError("必须显式指定 story_id（一故事一剧本，禁止无引用成片）");
   }
-  const p = storyPath(storyId);
+  const p = storyPath(storyId, chapterId);
   if (!fs.existsSync(p)) {
     throw new StoryError(`故事不存在: ${p}`);
   }
@@ -108,6 +131,11 @@ export function loadStory(storyId: string): { pack: StoryPack; path: string } {
   if (pack.story_id !== storyId) {
     throw new StoryError(
       `故事引用不匹配：请求 ${storyId}，文件 story_id=${pack.story_id}`,
+    );
+  }
+  if (chapterId?.trim() && pack.chapter_id !== chapterId.trim()) {
+    throw new StoryError(
+      `章节引用不匹配：请求 ${chapterId}，文件 chapter_id=${pack.chapter_id}`,
     );
   }
   pack.props = pack.props || [];
@@ -118,6 +146,112 @@ export function loadStory(storyId: string): { pack: StoryPack; path: string } {
   return { pack, path: p };
 }
 
+export type ChapterSummary = {
+  chapter_id: string;
+  title?: string;
+  logline?: string;
+  project_id?: string;
+  path: string;
+  is_default: boolean;
+  draft: boolean;
+  shots: number;
+  episodes: number;
+};
+
+/** 列出故事全部章节：默认章 story.json + chapters/*.json。 */
+export function listChapters(storyId: string): ChapterSummary[] {
+  const dir = path.join(STORIES_DIR, storyId);
+  if (!fs.existsSync(dir)) {
+    throw new StoryError(`故事不存在: ${dir}`);
+  }
+  const out: ChapterSummary[] = [];
+  const readChapter = (file: string, isDefault: boolean) => {
+    try {
+      const p = JSON.parse(fs.readFileSync(file, "utf8")) as StoryPack;
+      if (p?.story_id !== storyId) return;
+      out.push({
+        chapter_id: p.chapter_id || (isDefault ? "CH01" : path.basename(file, ".json")),
+        title: p.title,
+        logline: (p.script as { logline?: string })?.logline,
+        project_id: p.project_id,
+        path: toRepoRelative(file),
+        is_default: isDefault,
+        draft: p.draft === true,
+        shots: Array.isArray(p.shots) ? p.shots.length : 0,
+        episodes: Array.isArray((p.script as { episodes?: unknown[] })?.episodes)
+          ? ((p.script as { episodes?: unknown[] }).episodes as unknown[]).length
+          : 0,
+      });
+    } catch {
+      /* skip unreadable file */
+    }
+  };
+  const defaultFile = path.join(dir, "story.json");
+  if (fs.existsSync(defaultFile)) readChapter(defaultFile, true);
+  const chaptersDir = path.join(dir, "chapters");
+  if (fs.existsSync(chaptersDir)) {
+    for (const f of fs
+      .readdirSync(chaptersDir)
+      .filter((f) => f.endsWith(".json"))
+      .sort()) {
+      readChapter(path.join(chaptersDir, f), false);
+    }
+  }
+  if (!out.length) {
+    throw new StoryError(`故事无可用章节: ${storyId}`);
+  }
+  return out.sort((a, b) => a.chapter_id.localeCompare(b.chapter_id));
+}
+
+export type CreateChapterOptions = {
+  /** 从哪一章克隆宇宙（人物/环境/道具/画风）；缺省为默认章 */
+  from_chapter?: string;
+  title?: string;
+  logline?: string;
+  synopsis?: string;
+  project_id?: string;
+};
+
+/** 新建章节：克隆宇宙资产，剧本/分镜独立（draft，待后续流程填充）。 */
+export function createChapter(
+  storyId: string,
+  chapterId: string,
+  opts: CreateChapterOptions = {},
+): { pack: StoryPack; path: string } {
+  const cid = chapterId.trim().toUpperCase();
+  if (!/^CH\d{2,}$/.test(cid)) {
+    throw new StoryError(`章节 ID 需形如 CH02：${chapterId}`);
+  }
+  const target = chapterFilePath(storyId, cid);
+  if (fs.existsSync(target)) {
+    throw new StoryError(`章节已存在: ${storyId}/${cid}`);
+  }
+  const { pack: src } = loadStory(storyId, opts.from_chapter);
+  const pack: StoryPack = {
+    story_id: storyId,
+    chapter_id: cid,
+    project_id: opts.project_id || `${src.project_id || storyId}_${cid.toLowerCase()}`,
+    title: opts.title || `${src.title || storyId}·${cid}`,
+    style_lock: src.style_lock,
+    resolution: src.resolution,
+    video_workflow: src.video_workflow,
+    steps: src.steps,
+    draft: true,
+    script: {
+      logline: opts.logline || "",
+      synopsis: opts.synopsis || "",
+      episodes: [],
+    },
+    characters: structuredClone(src.characters),
+    environments: structuredClone(src.environments),
+    props: structuredClone(src.props || []),
+    shots: [],
+  };
+  saveStory(pack, target);
+  ok("章节管理", "已创建章节", { story_id: storyId, chapter_id: cid, path: target });
+  return { pack, path: target };
+}
+
 export function validateStory(pack: StoryPack): string[] {
   const issues: string[] = [];
   if (!pack.story_id) issues.push("missing story_id");
@@ -125,7 +259,8 @@ export function validateStory(pack: StoryPack): string[] {
   if (!pack.script) issues.push("missing script");
   if (!pack.characters?.length) issues.push("characters required");
   if (!pack.environments?.length) issues.push("environments required");
-  if (!pack.shots?.length) issues.push("shots required");
+  // draft 章节（章节管理新建、待填充）允许空分镜
+  if (!pack.draft && !pack.shots?.length) issues.push("shots required");
 
   const charIds = new Set(pack.characters.map((c) => c.id));
   const envIds = new Set(pack.environments.map((e) => e.id));
@@ -182,15 +317,43 @@ function registerStory(pack: StoryPack, filePath: string): void {
     idx.stories ||= {};
   }
   const rel = toRepoRelative(filePath);
-  idx.stories[pack.story_id] = {
-    title: pack.title || pack.story_id,
-    chapter_id: pack.chapter_id,
-    project_id: pack.project_id,
-    path: rel,
-    logline: (pack.script as { logline?: string })?.logline,
-  };
+  const logline = (pack.script as { logline?: string })?.logline;
+  const entry = ((idx.stories as Record<string, Record<string, unknown>>)[pack.story_id] ||
+    {}) as Record<string, unknown>;
+  // 故事→章节两级索引；顶层字段保留为"最近注册章"以兼容旧消费方
+  const chapters = (entry.chapters || {}) as Record<string, unknown>;
+  if (pack.chapter_id) {
+    chapters[pack.chapter_id] = { project_id: pack.project_id, path: rel, logline };
+  }
+  entry.chapters = chapters;
+  entry.title = pack.title || (entry.title as string) || pack.story_id;
+  entry.chapter_id = pack.chapter_id;
+  entry.project_id = pack.project_id;
+  entry.path = rel;
+  entry.logline = logline;
+  (idx.stories as Record<string, unknown>)[pack.story_id] = entry;
   fs.writeFileSync(indexPath, JSON.stringify(idx, null, 2), "utf8");
-  ok("故事注册", "已写入索引", { story_id: pack.story_id, path: rel });
+  ok("故事注册", "已写入索引", { story_id: pack.story_id, chapter_id: pack.chapter_id, path: rel });
+}
+
+/** 宇宙同步：把源章的人物/环境/道具/画风锁复制到故事其余各章。 */
+export function syncUniverse(storyId: string, fromChapter?: string): { updated: string[] } {
+  const { pack: src } = loadStory(storyId, fromChapter);
+  const updated: string[] = [];
+  for (const ch of listChapters(storyId)) {
+    if (ch.chapter_id === src.chapter_id) continue;
+    const { pack, path: p } = loadStory(storyId, ch.chapter_id);
+    pack.characters = structuredClone(src.characters);
+    pack.environments = structuredClone(src.environments);
+    pack.props = structuredClone(src.props || []);
+    pack.style_lock = src.style_lock;
+    saveStory(pack, p);
+    updated.push(ch.chapter_id);
+  }
+  if (updated.length) {
+    ok("章节管理", "宇宙已同步", { story_id: storyId, from: src.chapter_id, to: updated.join(",") });
+  }
+  return { updated };
 }
 
 export function getCharacter(pack: StoryPack, characterId: string) {

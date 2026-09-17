@@ -75,6 +75,11 @@ import { fail, info, ok, step, warn } from "../zh-log.js";
 
 export type ToolResult = Record<string, unknown>;
 
+/** 统一章节寻址：工具 args 透传可选 chapter_id，缺省为默认章。 */
+function loadChapter(args: { story_id: string; chapter_id?: string }): { pack: StoryPack; path: string } {
+  return loadStory(args.story_id, (args as { chapter_id?: string }).chapter_id);
+}
+
 function textRender(_args: unknown, value: ToolResult) {
   return [{ type: "text" as const, text: JSON.stringify(value, null, 2) }];
 }
@@ -165,8 +170,8 @@ export async function keysSetSettingsTool(args: {
   });
 }
 
-export async function storyLoad(args: { story_id: string }): Promise<ToolResult> {
-  const { pack, path: filePath } = loadStory(args.story_id);
+export async function storyLoad(args: { story_id: string; chapter_id?: string }): Promise<ToolResult> {
+  const { pack, path: filePath } = loadChapter(args);
   return {
     ok: true,
     story_id: pack.story_id,
@@ -185,10 +190,10 @@ export async function storyLoad(args: { story_id: string }): Promise<ToolResult>
 }
 
 export async function characterSheetGpt(
-  args: { story_id: string; character_id: string; size?: string },
+  args: { story_id: string; chapter_id?: string; character_id: string; size?: string },
   signal?: AbortSignal,
 ): Promise<ToolResult> {
-  const { pack, path: filePath } = loadStory(args.story_id);
+  const { pack, path: filePath } = loadChapter(args);
   const ch = getCharacter(pack, args.character_id);
   const style = loadStyleLock(pack.style_lock);
   const prompt = withLocks(ch.sheet_prompt || `角色设定三视图。${ch.identity_lock}`, style, ch.identity_lock);
@@ -222,10 +227,10 @@ export async function characterSheetGpt(
 }
 
 export async function shotStillGemini(
-  args: { story_id: string; shot_id: string; as_grid?: boolean },
+  args: { story_id: string; chapter_id?: string; shot_id: string; as_grid?: boolean },
   signal?: AbortSignal,
 ): Promise<ToolResult> {
-  const { pack, path: filePath } = loadStory(args.story_id);
+  const { pack, path: filePath } = loadChapter(args);
   const shot = getShot(pack, args.shot_id);
   const env = getEnvironment(pack, shot.environment_id);
   const ch = getCharacter(pack, shot.character_ids[0]);
@@ -282,10 +287,11 @@ export async function shotStillGemini(
 
 export async function selectGridCellTool(args: {
   story_id: string;
+  chapter_id?: string;
   shot_id: string;
   cell: number;
 }): Promise<ToolResult> {
-  const { pack, path: filePath } = loadStory(args.story_id);
+  const { pack, path: filePath } = loadChapter(args);
   const shot = getShot(pack, args.shot_id);
   const dirs = assetDirs(pack);
   const manifest = loadManifest(pack, dirs);
@@ -313,6 +319,7 @@ export async function selectGridCellTool(args: {
 export async function autodlVideoRef(
   args: {
     story_id: string;
+    chapter_id?: string;
     shot_id: string;
     workflow_id?: string;
     duration?: number;
@@ -323,7 +330,7 @@ export async function autodlVideoRef(
   signal?: AbortSignal,
 ): Promise<ToolResult> {
   step("成片工具", "准备多参考成片", { story_id: args.story_id, shot_id: args.shot_id });
-  const { pack } = loadStory(args.story_id);
+  const { pack } = loadChapter(args);
   if (!args.skip_gate) assertShotReady(pack, args.shot_id);
   const dirs = assetDirs(pack);
   const existing = resolveSelectedVideo(pack, dirs, args.shot_id);
@@ -385,10 +392,10 @@ export async function autodlVideoRef(
 }
 
 export async function runBridgeShot(
-  args: { story_id: string; shot_id: string; force?: boolean },
+  args: { story_id: string; chapter_id?: string; shot_id: string; force?: boolean },
   signal?: AbortSignal,
 ): Promise<ToolResult> {
-  const { pack } = loadStory(args.story_id);
+  const { pack } = loadChapter(args);
   const shot = getShot(pack, args.shot_id);
   if (!shot.bridge_from) throw new Error(`${args.shot_id} 缺少 bridge_from`);
   const dirs = assetDirs(pack);
@@ -434,7 +441,7 @@ export async function runLipsyncShot(
   args: { story_id: string; shot_id: string },
   signal?: AbortSignal,
 ): Promise<ToolResult> {
-  const { pack, path: filePath } = loadStory(args.story_id);
+  const { pack, path: filePath } = loadChapter(args);
   const shot = getShot(pack, args.shot_id);
   const dirs = assetDirs(pack);
   let audioUrl = (shot.ref_audios || []).find(isHttp);
@@ -476,10 +483,10 @@ export async function runLipsyncShot(
 }
 
 export async function shotTts(
-  args: { story_id: string; shot_id: string; voice?: string },
+  args: { story_id: string; chapter_id?: string; shot_id: string; voice?: string },
   signal?: AbortSignal,
 ): Promise<ToolResult> {
-  const { pack, path: filePath } = loadStory(args.story_id);
+  const { pack, path: filePath } = loadChapter(args);
   const shot = getShot(pack, args.shot_id);
   if (!shot.dialogue) throw new Error(`${args.shot_id} 无 dialogue`);
   const dirs = assetDirs(pack);
@@ -501,11 +508,11 @@ export async function shotTts(
 }
 
 export async function runChapterPipeline(
-  args: { story_id: string; force?: boolean; shot_ids?: string[] },
+  args: { story_id: string; chapter_id?: string; force?: boolean; shot_ids?: string[] },
   signal?: AbortSignal,
 ): Promise<ToolResult> {
   step("章节流水线", "开始章节成片", { story_id: args.story_id });
-  const { pack, path: filePath } = loadStory(args.story_id);
+  const { pack, path: filePath } = loadChapter(args);
   autoBridgeChapter(pack, filePath);
   const steps = resolveSteps(pack);
   const targets = args.shot_ids?.length
@@ -530,9 +537,9 @@ export async function runChapterPipeline(
   return { ok: true, story_id: args.story_id, steps, count: results.length, results };
 }
 
-export async function gateCheckTool(args: { story_id: string; shot_id?: string }): Promise<ToolResult> {
+export async function gateCheckTool(args: { story_id: string; chapter_id?: string; shot_id?: string }): Promise<ToolResult> {
   step("齐套门闸", "开始检查", { story_id: args.story_id, shot_id: args.shot_id || "(整章)" });
-  const { pack } = loadStory(args.story_id);
+  const { pack } = loadChapter(args);
   if (args.shot_id) {
     const issues = checkShotReady(pack, args.shot_id);
     const ready = !issues.some((i) => i.level === "error");
@@ -548,30 +555,32 @@ export async function gateCheckTool(args: { story_id: string; shot_id?: string }
 
 export async function planUpdateTool(args: {
   story_id: string;
+  chapter_id?: string;
   shot_id: string;
   plan_path?: PlanPath;
   bridge_from?: string | null;
   needs_lipsync?: boolean;
   plan_notes?: string;
 }): Promise<ToolResult> {
-  const { pack, path: filePath } = loadStory(args.story_id);
+  const { pack, path: filePath } = loadChapter(args);
   setShotPlan(pack, args.shot_id, args, filePath);
   return { ok: true, plan: buildChapterPlan(pack) };
 }
 
-export async function autoBridgeTool(args: { story_id: string }): Promise<ToolResult> {
-  const { pack, path: filePath } = loadStory(args.story_id);
+export async function autoBridgeTool(args: { story_id: string; chapter_id?: string }): Promise<ToolResult> {
+  const { pack, path: filePath } = loadChapter(args);
   const { updated } = autoBridgeChapter(pack, filePath);
   return { ok: true, updated, plan: buildChapterPlan(pack) };
 }
 
 export async function approveTool(args: {
   story_id: string;
+  chapter_id?: string;
   kind: "character" | "still" | "video";
   id: string;
   approved: boolean;
 }): Promise<ToolResult> {
-  const { pack, path: filePath } = loadStory(args.story_id);
+  const { pack, path: filePath } = loadChapter(args);
   if (args.kind === "character") {
     getCharacter(pack, args.id).approved = args.approved;
   } else {
@@ -585,25 +594,26 @@ export async function approveTool(args: {
 
 export async function selectVersionTool(args: {
   story_id: string;
+  chapter_id?: string;
   shot_id: string;
   kind: "still" | "video";
   version: string;
 }): Promise<ToolResult> {
-  const { pack } = loadStory(args.story_id);
+  const { pack } = loadChapter(args);
   const dirs = assetDirs(pack);
   const manifest = selectVersion(pack, dirs, args.shot_id, args.kind, args.version);
   return { ok: true, manifest: manifest.shots[args.shot_id] };
 }
 
-export async function promptPreviewTool(args: { story_id: string; shot_id: string }): Promise<ToolResult> {
+export async function promptPreviewTool(args: { story_id: string; chapter_id?: string; shot_id: string }): Promise<ToolResult> {
   step("提示词预览", "编译 H3 分节提示词", { story_id: args.story_id, shot_id: args.shot_id });
-  const { pack } = loadStory(args.story_id);
+  const { pack } = loadChapter(args);
   const preview = compileH3PromptSections(pack, args.shot_id);
   ok("提示词预览", "编译完成", { shot_id: args.shot_id });
   return { ok: true, ...preview };
 }
 
-export async function zipExportTool(args: { story_id: string }): Promise<ToolResult> {
+export async function zipExportTool(args: { story_id: string; chapter_id?: string }): Promise<ToolResult> {
   step("工程包", "导出 ZIP", { story_id: args.story_id });
   const result = exportStoryZip(args.story_id);
   ok("工程包", "导出完成", { zip_path: result.zip_path });
@@ -622,9 +632,9 @@ function resolveShotAudioLocal(dirs: ReturnType<typeof assetDirs>, shotId: strin
   return null;
 }
 
-export async function timelineExportTool(args: { story_id: string }): Promise<ToolResult> {
+export async function timelineExportTool(args: { story_id: string; chapter_id?: string }): Promise<ToolResult> {
   step("时间线", "正在导出时间线与字幕", { story_id: args.story_id });
-  const { pack } = loadStory(args.story_id);
+  const { pack } = loadChapter(args);
   const dirs = assetDirs(pack);
   const clips = pack.shots
     .map((sh) => {
@@ -660,10 +670,10 @@ export async function timelineExportTool(args: { story_id: string }): Promise<To
 
 /** 全章对白 TTS（有 dialogue 的镜头） */
 export async function chapterTtsTool(
-  args: { story_id: string; force?: boolean },
+  args: { story_id: string; chapter_id?: string; force?: boolean },
   signal?: AbortSignal,
 ): Promise<ToolResult> {
-  const { pack } = loadStory(args.story_id);
+  const { pack } = loadChapter(args);
   const dirs = assetDirs(pack);
   step("全章配音", "正在为有对白镜头生成 TTS", { story_id: args.story_id });
   const results: ToolResult[] = [];
@@ -700,6 +710,7 @@ export async function chapterTtsTool(
 export async function chapterDeliverTool(
   args: {
     story_id: string;
+    chapter_id?: string;
     force_tts?: boolean;
     skip_tts?: boolean;
     skip_mux?: boolean;
@@ -710,7 +721,7 @@ export async function chapterDeliverTool(
 ): Promise<ToolResult> {
   const storyId = args.story_id;
   step("章节交付", "开始补配音/字幕交付", { story_id: storyId });
-  const { pack } = loadStory(storyId);
+  const { pack } = loadChapter(args);
   const dirs = assetDirs(pack);
 
   let ttsResult: ToolResult | null = null;
@@ -775,6 +786,7 @@ export async function chapterDeliverTool(
 
 export async function jianyingExportTool(args: {
   story_id: string;
+  chapter_id?: string;
   draft_dir?: string;
   draft_name?: string;
 }): Promise<ToolResult> {
@@ -799,6 +811,7 @@ export async function jianyingExportTool(args: {
 
 export async function expandStoryTool(args: {
   story_id: string;
+  chapter_id?: string;
   logline: string;
   synopsis: string;
   title?: string;
@@ -827,7 +840,7 @@ function ensureWritingSeeded(storyId: string) {
   return loadWriting(storyId);
 }
 
-export async function writingGetTool(args: { story_id: string }): Promise<ToolResult> {
+export async function writingGetTool(args: { story_id: string; chapter_id?: string }): Promise<ToolResult> {
   const doc = ensureWritingSeeded(args.story_id);
   const active = getActiveDraft(doc);
   return {
@@ -844,6 +857,7 @@ function writingPathSafe(storyId: string) {
 
 export async function writingSeedTool(args: {
   story_id: string;
+  chapter_id?: string;
   source_text: string;
   title?: string;
   logline?: string;
@@ -863,6 +877,7 @@ export async function writingSeedTool(args: {
 
 export async function writingGenerateTool(args: {
   story_id: string;
+  chapter_id?: string;
   kind: "continue" | "twist" | "revise";
   instruction?: string;
   target_chars?: number;
@@ -893,6 +908,7 @@ export async function writingGenerateTool(args: {
 
 export async function writingAdoptTool(args: {
   story_id: string;
+  chapter_id?: string;
   draft_id?: string;
   mode?: "replace" | "append";
 }): Promise<ToolResult> {
@@ -904,6 +920,7 @@ export async function writingAdoptTool(args: {
 
 export async function writingApplySynopsisTool(args: {
   story_id: string;
+  chapter_id?: string;
   draft_id?: string;
 }): Promise<ToolResult> {
   const doc = loadWriting(args.story_id);
@@ -912,7 +929,7 @@ export async function writingApplySynopsisTool(args: {
     : getActiveDraft(doc);
   const text = (draft?.content || doc.source_text || "").trim();
   if (!text) throw new Error("没有可写入的文案");
-  const { pack, path: filePath } = loadStory(args.story_id);
+  const { pack, path: filePath } = loadChapter(args);
   const script = { ...(pack.script || {}) } as { logline?: string; synopsis?: string };
   script.synopsis = text;
   if (doc.logline) script.logline = doc.logline;
@@ -930,6 +947,7 @@ export async function writingApplySynopsisTool(args: {
 
 export async function writingExpandEpisodeTool(args: {
   story_id: string;
+  chapter_id?: string;
   draft_id?: string;
   instruction?: string;
   create_if_missing?: boolean;
@@ -946,7 +964,7 @@ export async function writingExpandEpisodeTool(args: {
   let pack: StoryPack;
   let filePath: string | undefined;
   try {
-    const loaded = loadStory(args.story_id);
+    const loaded = loadChapter(args);
     pack = loaded.pack;
     filePath = loaded.path;
   } catch (err) {
@@ -1000,8 +1018,8 @@ export async function providersTool(args?: {
   };
 }
 
-export async function setStyleLockTool(args: { story_id: string; style_lock: string }): Promise<ToolResult> {
-  const { pack, path: filePath } = loadStory(args.story_id);
+export async function setStyleLockTool(args: { story_id: string; chapter_id?: string; style_lock: string }): Promise<ToolResult> {
+  const { pack, path: filePath } = loadChapter(args);
   const locks = listStyleLocks();
   if (locks.length && !locks.includes(args.style_lock) && !args.style_lock.includes(" ")) {
     // allow raw text locks too

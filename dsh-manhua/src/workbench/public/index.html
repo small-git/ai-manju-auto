@@ -25,6 +25,10 @@
           <div class="select-wrap">
             <select id="global-story"></select>
           </div>
+          <label>当前章节</label>
+          <div class="select-wrap">
+            <select id="global-chapter"></select>
+          </div>
           <button type="button" class="btn small" id="btn-bind-story">进入故事</button>
         </div>
 
@@ -237,6 +241,35 @@
               </thead>
               <tbody id="stories-tbody"></tbody>
             </table>
+          </div>
+          <div class="card">
+            <div class="table-head">
+              <h3>章节管理</h3>
+              <button type="button" class="btn ghost small" id="btn-refresh-chapters">刷新</button>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>章节</th>
+                  <th>标题</th>
+                  <th>集数</th>
+                  <th>镜头</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="chapters-tbody"></tbody>
+            </table>
+            <div class="form-grid" style="margin-top:12px">
+              <div class="form-row"><label>新章节 ID</label><input id="chapter-new-id" placeholder="例如 CH02" /></div>
+              <div class="form-row"><label>标题</label><input id="chapter-new-title" placeholder="可选" /></div>
+              <div class="form-row full"><label>一句话主线</label><input id="chapter-new-logline" placeholder="可选，后续在文案工作室完善" /></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn" id="btn-chapter-create">新建章节（克隆宇宙）</button>
+              <button type="button" class="btn ghost" id="btn-chapter-sync">宇宙同步：当前章 → 其余章</button>
+            </div>
+            <pre class="result" id="chapter-result">章节操作结果</pre>
           </div>
           <div class="card">
             <h3>智能拆剧（草稿）</h3>

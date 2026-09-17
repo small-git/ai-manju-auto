@@ -599,14 +599,16 @@ def main() -> None:
     parser.add_argument("--retries", type=int, default=1, help="单镜失败重试次数（指数退避）")
     parser.add_argument("--keep-going", action="store_true", help="单镜失败不中断，记录报告后继续")
     parser.add_argument("--serial", action="store_true", help="强制串行逐镜执行（默认并发：全部提交后统一轮询）")
+    parser.add_argument("--chapter", default="", help="章节 ID（如 CH02）；缺省用默认章 story.json")
     args = parser.parse_args()
 
     ensure_env()
     story_id = (args.story or "").strip() or None
-    step("流水线", "启动", story=story_id or "(未指定)", file=str(args.project_json or ""))
+    chapter_id = (args.chapter or "").strip() or None
+    step("流水线", "启动", story=story_id or "(未指定)", chapter=chapter_id or "(默认章)", file=str(args.project_json or ""))
 
     if story_id and not args.project_json:
-        pack, pack_path = resolve_story_pack(story_id)
+        pack, pack_path = resolve_story_pack(story_id, chapter_id=chapter_id)
         ok("流水线", "已按 story_id 加载故事包", path=str(pack_path))
     elif args.project_json:
         pack_path = args.project_json
@@ -620,6 +622,16 @@ def main() -> None:
             )
             raise SystemExit(
                 f"故事引用不匹配：--story={story_id} vs file story_id={pack.get('story_id')}"
+            )
+        if _is_story_pack(pack) and chapter_id and pack.get("chapter_id") != chapter_id:
+            fail(
+                "流水线",
+                "章节引用不匹配",
+                chapter=chapter_id,
+                file_chapter_id=pack.get("chapter_id"),
+            )
+            raise SystemExit(
+                f"章节引用不匹配：--chapter={chapter_id} vs file chapter_id={pack.get('chapter_id')}"
             )
         ok("流水线", "已从文件加载工程", path=str(pack_path))
     else:
