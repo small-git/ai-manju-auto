@@ -40,10 +40,16 @@ export function compileH3PromptSections(pack: StoryPack, shotId: string): {
     A09_timing: `时长${duration}秒；路径${resolvePlanPath(shot)}`,
   };
 
-  const actionLine =
-    `0-${duration}秒：${shot.action}` +
-    (sections.A06_camera !== "默认" ? `，${sections.A06_camera}` : "") +
-    (shot.emotion ? `，情绪：${shot.emotion}` : "");
+  // H3 会自发"脑补"语音：一律压掉台词声；真对白走 TTS/lipsync 后期配音
+  const speechNote = shot.dialogue
+    ? "，人物不发声念台词（台词后期配音），无对白声"
+    : "，无台词、无对白，仅环境音";
+  const actionLine = shot.video_prompt
+    ? String(shot.video_prompt)
+    : `0-${duration}秒：${shot.action}` +
+      (sections.A06_camera !== "默认" ? `，${sections.A06_camera}` : "") +
+      (shot.emotion ? `，情绪：${shot.emotion}` : "") +
+      speechNote;
 
   return {
     shot_id: shotId,

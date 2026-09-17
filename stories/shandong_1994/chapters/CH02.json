@@ -202,7 +202,11 @@
       "plan_path": "video_ref",
       "still_approved": true,
       "needs_lipsync": false,
-      "still_url": "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH02/01_assets/E01_S01_SH01_still.png"
+      "still_url": "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH02/01_assets/E01_S01_SH01_still.png",
+      "video_approved": true,
+      "ref_audios": [
+        "https://retrieval-prefix-cotton-bonds.trycloudflare.com/api/media/runs/shandong_1994/CH02/02_audio/E01_S01_SH01.mp3"
+      ]
     },
     {
       "shot_id": "E01_S02_SH01",

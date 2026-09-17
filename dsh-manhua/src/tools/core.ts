@@ -482,6 +482,15 @@ export async function runLipsyncShot(
   };
 }
 
+/** TTS 前剥离「角色：」标签，避免把"母亲："念出来；多角色台词仍用单 voice（限制，见文档）。 */
+export function cleanDialogueForTts(dialogue: string): string {
+  return dialogue
+    .split(/[\n。！？!?；;]+/)
+    .map((seg) => seg.replace(/^\s*[一-龥A-Za-z]{1,8}[:：]\s*/, "").trim())
+    .filter(Boolean)
+    .join("。");
+}
+
 export async function shotTts(
   args: { story_id: string; chapter_id?: string; shot_id: string; voice?: string },
   signal?: AbortSignal,
@@ -489,11 +498,13 @@ export async function shotTts(
   const { pack, path: filePath } = loadChapter(args);
   const shot = getShot(pack, args.shot_id);
   if (!shot.dialogue) throw new Error(`${args.shot_id} 无 dialogue`);
+  const text = cleanDialogueForTts(String(shot.dialogue));
+  if (!text) throw new Error(`${args.shot_id} dialogue 清洗后为空`);
   const dirs = assetDirs(pack);
   ensureDir(dirs.audio);
   const dest = path.join(dirs.audio, `${args.shot_id}.mp3`);
   const tts = await withRetry(
-    () => providerTts({ text: String(shot.dialogue), destPath: dest, voice: args.voice, signal }),
+    () => providerTts({ text, destPath: dest, voice: args.voice, signal }),
     { label: `tts:${args.shot_id}` },
   );
   shot.ref_audios = [tts.url || tts.localPath];
