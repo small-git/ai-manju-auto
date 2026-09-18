@@ -518,6 +518,24 @@ const VOICE_FEMALE = /(母|妈|奶|婆|姑|姨|姐|妹|女|婶|嫂)/;
 const VOICE_CHILD = /(孩|娃|儿童|少年|小孩|平凡)/;
 const VOICE_MALE = /(父|爸|爷|叔|伯|哥|兄|弟|男|公)/;
 
+/** 情绪 → 韵律（首个命中生效；驱动 edge-tts rate/volume/pitch，OpenAI 折算 speed）。 */
+const EMOTION_PROSODY: Array<[RegExp, { rate?: string; volume?: string; pitch?: string }]> = [
+  [/(不舍|克制|沉重|悲伤|压抑|沉默)/, { rate: "-8%", pitch: "-2Hz", volume: "-5%" }],
+  [/(羞怯|不安|拘谨|害怕|茫然)/, { rate: "-5%", pitch: "-1Hz", volume: "-15%" }],
+  [/(紧张|警惕|焦虑)/, { rate: "-3%", volume: "-8%" }],
+  [/(决意|坚定|勇敢|愤怒|激动)/, { rate: "+6%", pitch: "+2Hz" }],
+  [/(温柔|温暖|平静|安定|安宁|希望)/, { rate: "-4%", volume: "-5%" }],
+  [/(欢快|开心|喜悦|兴奋)/, { rate: "+8%", pitch: "+3Hz" }],
+];
+
+export function prosodyForEmotion(emotion?: string): { rate?: string; volume?: string; pitch?: string } {
+  if (!emotion) return {};
+  for (const [re, p] of EMOTION_PROSODY) {
+    if (re.test(emotion)) return p;
+  }
+  return {};
+}
+
 function loadVoiceMap(): Record<string, string> {
   try {
     const p = path.join(loadConfig().repoRoot, "config", "tts_voices.json");
@@ -605,6 +623,10 @@ export async function shotTts(
   const segments = parseDialogueSegments(String(shot.dialogue));
   if (!segments.length) throw new Error(`${args.shot_id} dialogue 清洗后为空`);
   const voiceMap = loadVoiceMap();
+  const prosody = prosodyForEmotion(typeof shot.emotion === "string" ? shot.emotion : undefined);
+  if (Object.keys(prosody).length) {
+    info("TTS", "情绪韵律", { shot_id: args.shot_id, emotion: shot.emotion, ...prosody });
+  }
 
   let provider = "";
   let tts: { localPath: string; url?: string; provider: string; model: string };
@@ -612,7 +634,7 @@ export async function shotTts(
     // 显式单音色，或单角色镜头：一次合成
     const text = args.voice ? cleanDialogueForTts(String(shot.dialogue)) : segments[0].text;
     tts = await withRetry(
-      () => providerTts({ text, destPath: dest, voice: args.voice, signal }),
+      () => providerTts({ text, destPath: dest, voice: args.voice, prosody, signal }),
       { label: `tts:${args.shot_id}` },
     );
     provider = tts.provider;
@@ -627,10 +649,10 @@ export async function shotTts(
       step("TTS", "分角色合成", { shot_id: args.shot_id, seg: i + 1, speaker: seg.speaker || "(叙述)", voice });
       let part;
       try {
-        part = await providerTts({ text: seg.text, destPath: path.join(segDir, `seg${i + 1}.mp3`), voice, signal });
+        part = await providerTts({ text: seg.text, destPath: path.join(segDir, `seg${i + 1}.mp3`), voice, prosody, signal });
       } catch (e) {
         warn("TTS", "该音色失败，回退默认音色", { voice, error: e instanceof Error ? e.message.slice(0, 120) : String(e) });
-        part = await providerTts({ text: seg.text, destPath: path.join(segDir, `seg${i + 1}.mp3`), signal });
+        part = await providerTts({ text: seg.text, destPath: path.join(segDir, `seg${i + 1}.mp3`), prosody, signal });
       }
       provider = part.provider;
       parts.push(part.localPath);
