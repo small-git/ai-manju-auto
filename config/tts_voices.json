@@ -1,8 +1,11 @@
 {
-  "说明": "多角色配音音色表（edge-tts 音色名）。键为台词「角色：」标签；未列出的角色走内置启发式（母/女→Xiaoxiao，父/男→Yunjian，孩/少年→Yunxia，其余→默认音）。配音情绪由分镜 emotion 字段自动驱动韵律（语速/音高/音量），无需配置。",
+  "说明": "多角色配音配置。顶层键=台词「角色：」标签 → edge-tts 音色名（兜底链与采样源）；timbre 键=角色 → IndexTTS2 克隆用真人音色样本文件（runs/shared/tts/voices/ 下，优先于 edge 采样）。配音情绪由分镜 emotion 自动映射情感参考音频（runs/shared/tts/emo_*.wav）。",
   "平凡": "zh-CN-YunxiaNeural",
   "母亲": "zh-CN-XiaoxiaoNeural",
   "父亲": "zh-CN-YunjianNeural",
   "老师": "zh-CN-XiaoxiaoNeural",
-  "_default": "zh-CN-YunxiNeural"
+  "_default": "zh-CN-YunxiNeural",
+  "timbre": {
+    "母亲": "voice_11.wav"
+  }
 }

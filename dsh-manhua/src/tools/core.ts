@@ -536,18 +536,34 @@ export function prosodyForEmotion(emotion?: string): { rate?: string; volume?: s
   return {};
 }
 
-function loadVoiceMap(): Record<string, string> {
+type VoiceConfig = { voices: Record<string, string>; timbre: Record<string, string>; defaultVoice: string };
+
+function loadVoiceConfig(): VoiceConfig {
   try {
     const p = path.join(loadConfig().repoRoot, "config", "tts_voices.json");
     if (fs.existsSync(p)) {
-      const raw = JSON.parse(fs.readFileSync(p, "utf8")) as Record<string, string>;
-      delete raw["说明"];
-      return raw;
+      const raw = JSON.parse(fs.readFileSync(p, "utf8")) as Record<string, unknown>;
+      const timbre = (raw.timbre || {}) as Record<string, string>;
+      const voices: Record<string, string> = {};
+      for (const [k, v] of Object.entries(raw)) {
+        if (k === "说明" || k === "timbre") continue;
+        if (typeof v === "string") voices[k] = v;
+      }
+      return {
+        voices,
+        timbre,
+        defaultVoice: voices._default || process.env.EDGE_TTS_VOICE || "zh-CN-YunxiNeural",
+      };
     }
   } catch {
     /* 配置缺失走启发式 */
   }
-  return {};
+  return { voices: {}, timbre: {}, defaultVoice: process.env.EDGE_TTS_VOICE || "zh-CN-YunxiNeural" };
+}
+
+function loadVoiceMap(): Record<string, string> {
+  const cfg = loadVoiceConfig();
+  return { ...cfg.voices, _default: cfg.defaultVoice };
 }
 
 /** 角色 → edge-tts 音色：配置表优先，其次启发式。 */
@@ -609,13 +625,19 @@ function concatAudioParts(parts: string[], dest: string, workDir: string): strin
   return dest;
 }
 
-/** 角色音色采样：edge-tts 生成一次复用（跨章节），公网 URL 供 IndexTTS2 克隆。 */
+/** 角色音色采样：timbre 真人样本优先（runs/shared/tts/voices/），否则 edge-tts 生成一次复用（跨章节）。 */
 async function ensureVoiceSample(
   pack: StoryPack,
   speaker: string,
   edgeVoice: string,
 ): Promise<string | undefined> {
   if (!speaker) return undefined;
+  const timbreFile = loadVoiceConfig().timbre[speaker];
+  if (timbreFile) {
+    const human = path.join(RUNS_DIR, "shared", "tts", "voices", timbreFile);
+    if (fs.existsSync(human)) return publicUrlForLocal(human);
+    warn("TTS", "timbre 样本不存在，回退 edge 采样", { speaker, file: timbreFile });
+  }
   const dir = path.join(RUNS_DIR, pack.story_id, "_voice");
   ensureDir(dir);
   const dest = path.join(dir, `${speaker}.mp3`);
