@@ -447,7 +447,7 @@ export async function runLipsyncShot(
   const dirs = assetDirs(pack);
   let audioUrl = (shot.ref_audios || []).find(isHttp);
   if (!audioUrl && shot.dialogue) {
-    const tts = await shotTts({ story_id: args.story_id, shot_id: args.shot_id }, signal);
+    const tts = await shotTts({ story_id: args.story_id, chapter_id: args.chapter_id, shot_id: args.shot_id }, signal);
     audioUrl = typeof tts.url === "string" ? tts.url : undefined;
     if (!audioUrl) throw new Error("TTS 未得到公网 URL，无法 lipsync");
   }
@@ -901,7 +901,7 @@ export async function chapterTtsTool(
       continue;
     }
     try {
-      results.push(await shotTts({ story_id: args.story_id, shot_id: shot.shot_id }, signal));
+      results.push(await shotTts({ story_id: args.story_id, chapter_id: args.chapter_id, shot_id: shot.shot_id }, signal));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       fail("全章配音", `镜头 ${shot.shot_id} 失败，继续下一镜`, { error: message.slice(0, 200) });
@@ -941,10 +941,10 @@ export async function chapterDeliverTool(
 
   let ttsResult: ToolResult | null = null;
   if (!args.skip_tts) {
-    ttsResult = await chapterTtsTool({ story_id: storyId, force: args.force_tts }, signal);
+    ttsResult = await chapterTtsTool({ story_id: storyId, chapter_id: args.chapter_id, force: args.force_tts }, signal);
   }
 
-  const timelineResult = await timelineExportTool({ story_id: storyId });
+  const timelineResult = await timelineExportTool({ story_id: storyId, chapter_id: args.chapter_id });
   const timelineFile = String(timelineResult.timeline_file);
   const srtFile = String(timelineResult.srt_file);
   const timeline = timelineResult.timeline as {
@@ -972,6 +972,7 @@ export async function chapterDeliverTool(
     try {
       jianying = await jianyingExportTool({
         story_id: storyId,
+        chapter_id: args.chapter_id,
         draft_dir: args.jianying_draft_dir,
       });
     } catch (err) {
@@ -1005,7 +1006,7 @@ export async function jianyingExportTool(args: {
   draft_dir?: string;
   draft_name?: string;
 }): Promise<ToolResult> {
-  const timelineResult = await timelineExportTool({ story_id: args.story_id });
+  const timelineResult = await timelineExportTool({ story_id: args.story_id, chapter_id: args.chapter_id });
   const timelineFile = String(timelineResult.timeline_file);
   const srtFile = String(timelineResult.srt_file);
   const result = exportJianyingDraft({
