@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { loadConfig } from "../config.js";
 import {
   keysSet,
@@ -482,13 +483,112 @@ export async function runLipsyncShot(
   };
 }
 
-/** TTS 前剥离「角色：」标签，避免把"母亲："念出来；多角色台词仍用单 voice（限制，见文档）。 */
+/** TTS 前剥离「角色：」标签（单音色兜底场景用）。 */
 export function cleanDialogueForTts(dialogue: string): string {
   return dialogue
     .split(/[\n。！？!?；;]+/)
     .map((seg) => seg.replace(/^\s*[一-龥A-Za-z]{1,8}[:：]\s*/, "").trim())
     .filter(Boolean)
     .join("。");
+}
+
+export type DialogueSegment = { speaker: string; text: string };
+
+/** 按「角色：」标签拆句；无标签文本归属上一角色（开头无标签则 speaker 为空）。 */
+export function parseDialogueSegments(dialogue: string): DialogueSegment[] {
+  const segs: DialogueSegment[] = [];
+  const re = /([一-龥A-Za-z·]{1,8})[:：]/g;
+  let speaker = "";
+  let lastIndex = 0;
+  const push = (end: number) => {
+    const text = dialogue.slice(lastIndex, end).trim();
+    if (text) segs.push({ speaker, text });
+  };
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(dialogue))) {
+    push(m.index);
+    speaker = m[1];
+    lastIndex = m.index + m[0].length;
+  }
+  push(dialogue.length);
+  return segs;
+}
+
+const VOICE_FEMALE = /(母|妈|奶|婆|姑|姨|姐|妹|女|婶|嫂)/;
+const VOICE_CHILD = /(孩|娃|儿童|少年|小孩|平凡)/;
+const VOICE_MALE = /(父|爸|爷|叔|伯|哥|兄|弟|男|公)/;
+
+function loadVoiceMap(): Record<string, string> {
+  try {
+    const p = path.join(loadConfig().repoRoot, "config", "tts_voices.json");
+    if (fs.existsSync(p)) {
+      const raw = JSON.parse(fs.readFileSync(p, "utf8")) as Record<string, string>;
+      delete raw["说明"];
+      return raw;
+    }
+  } catch {
+    /* 配置缺失走启发式 */
+  }
+  return {};
+}
+
+/** 角色 → edge-tts 音色：配置表优先，其次启发式。 */
+export function voiceForSpeaker(speaker: string, map: Record<string, string> = loadVoiceMap()): string {
+  if (speaker && map[speaker]) return map[speaker];
+  if (speaker && VOICE_CHILD.test(speaker)) return "zh-CN-YunxiaNeural";
+  if (speaker && VOICE_FEMALE.test(speaker)) return "zh-CN-XiaoxiaoNeural";
+  if (speaker && VOICE_MALE.test(speaker)) return "zh-CN-YunjianNeural";
+  return map._default || process.env.EDGE_TTS_VOICE || "zh-CN-YunxiNeural";
+}
+
+function findFfmpegBin(): string {
+  const which = spawnSync(process.platform === "win32" ? "where" : "which", ["ffmpeg"], {
+    encoding: "utf8",
+  });
+  const line = (which.stdout || "").split(/\r?\n/).map((s) => s.trim()).find(Boolean);
+  if (line && fs.existsSync(line)) return line;
+  const guess = "C:\\ffmpeg-2026-06-29-git-de6bcf5c05-full_build\\bin\\ffmpeg.exe";
+  if (fs.existsSync(guess)) return guess;
+  throw new Error("多角色配音拼接需要 ffmpeg");
+}
+
+/** 与 providers 一致的公网 URL 换算（隧道/静态服务场景）。 */
+function publicUrlForLocal(localPath: string): string | undefined {
+  const cfg = loadConfig();
+  if (!cfg.publicAssetBaseUrl) return undefined;
+  const rel = path.relative(cfg.repoRoot, localPath).replace(/\\/g, "/");
+  return `${cfg.publicAssetBaseUrl}/${rel}`;
+}
+
+/** 多段配音按顺序拼接（段间 0.35s 静音），输出单个 mp3。 */
+function concatAudioParts(parts: string[], dest: string, workDir: string): string {
+  if (parts.length === 1) {
+    fs.copyFileSync(parts[0], dest);
+    return dest;
+  }
+  const ffmpeg = findFfmpegBin();
+  ensureDir(workDir);
+  const silence = path.join(workDir, "silence.mp3");
+  if (!fs.existsSync(silence)) {
+    const r = spawnSync(ffmpeg, ["-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", "0.35", silence], { encoding: "utf8" });
+    if (r.status !== 0) throw new Error(`静音垫生成失败: ${r.stderr || r.stdout}`);
+  }
+  const ordered: string[] = [];
+  parts.forEach((p, i) => {
+    ordered.push(p);
+    if (i < parts.length - 1) ordered.push(silence);
+  });
+  const inputs = ordered.flatMap((p) => ["-i", p]);
+  const labels = ordered.map((_, i) => `[${i}:a]`).join("");
+  const r = spawnSync(
+    ffmpeg,
+    ["-y", ...inputs, "-filter_complex", `${labels}concat=n=${ordered.length}:v=0:a=1[out]`, "-map", "[out]", "-c:a", "libmp3lame", dest],
+    { encoding: "utf8" },
+  );
+  if (r.status !== 0 || !fs.existsSync(dest)) {
+    throw new Error(`多角色配音拼接失败: ${r.stderr || r.stdout}`);
+  }
+  return dest;
 }
 
 export async function shotTts(
@@ -498,15 +598,48 @@ export async function shotTts(
   const { pack, path: filePath } = loadChapter(args);
   const shot = getShot(pack, args.shot_id);
   if (!shot.dialogue) throw new Error(`${args.shot_id} 无 dialogue`);
-  const text = cleanDialogueForTts(String(shot.dialogue));
-  if (!text) throw new Error(`${args.shot_id} dialogue 清洗后为空`);
   const dirs = assetDirs(pack);
   ensureDir(dirs.audio);
   const dest = path.join(dirs.audio, `${args.shot_id}.mp3`);
-  const tts = await withRetry(
-    () => providerTts({ text, destPath: dest, voice: args.voice, signal }),
-    { label: `tts:${args.shot_id}` },
-  );
+
+  const segments = parseDialogueSegments(String(shot.dialogue));
+  if (!segments.length) throw new Error(`${args.shot_id} dialogue 清洗后为空`);
+  const voiceMap = loadVoiceMap();
+
+  let provider = "";
+  let tts: { localPath: string; url?: string; provider: string; model: string };
+  if (args.voice || segments.length === 1) {
+    // 显式单音色，或单角色镜头：一次合成
+    const text = args.voice ? cleanDialogueForTts(String(shot.dialogue)) : segments[0].text;
+    tts = await withRetry(
+      () => providerTts({ text, destPath: dest, voice: args.voice, signal }),
+      { label: `tts:${args.shot_id}` },
+    );
+    provider = tts.provider;
+  } else {
+    // 多角色：逐段分音色合成后拼接
+    const segDir = path.join(dirs.audio, `${args.shot_id}_segments`);
+    ensureDir(segDir);
+    const parts: string[] = [];
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      const voice = voiceForSpeaker(seg.speaker, voiceMap);
+      step("TTS", "分角色合成", { shot_id: args.shot_id, seg: i + 1, speaker: seg.speaker || "(叙述)", voice });
+      let part;
+      try {
+        part = await providerTts({ text: seg.text, destPath: path.join(segDir, `seg${i + 1}.mp3`), voice, signal });
+      } catch (e) {
+        warn("TTS", "该音色失败，回退默认音色", { voice, error: e instanceof Error ? e.message.slice(0, 120) : String(e) });
+        part = await providerTts({ text: seg.text, destPath: path.join(segDir, `seg${i + 1}.mp3`), signal });
+      }
+      provider = part.provider;
+      parts.push(part.localPath);
+    }
+    concatAudioParts(parts, dest, segDir);
+    tts = { localPath: dest, url: publicUrlForLocal(dest), provider: provider || "edge-tts", model: "multi-voice" };
+  }
+
+  shot.ref_audios = [tts.url || tts.localPath];
   shot.ref_audios = [tts.url || tts.localPath];
   saveStory(pack, filePath);
   return {

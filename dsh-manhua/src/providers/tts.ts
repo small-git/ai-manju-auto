@@ -23,8 +23,9 @@ function publicUrlFor(localPath: string): string | undefined {
 async function synthesizeWithEdge(opts: {
   text: string;
   destPath: string;
+  voice?: string;
 }): Promise<TtsResult> {
-  const voice = process.env.EDGE_TTS_VOICE || "zh-CN-YunxiNeural";
+  const voice = opts.voice || process.env.EDGE_TTS_VOICE || "zh-CN-YunxiNeural";
   let dest = opts.destPath;
   if (!path.extname(dest)) dest += ".mp3";
   ensureDir(path.dirname(dest));
