@@ -62,6 +62,23 @@ def emotion_to_weights(emotion: str) -> dict[str, float | str]:
     return {}
 
 
+_EMO_REF_FILES: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"(不舍|悲伤|难过|沉重|压抑|沉默|忧郁|留恋)"), "emo_sad.wav"),
+    (re.compile(r"(愤怒|生气|激动|憎恨)"), "emo_hate.wav"),
+]
+
+
+def _emo_ref_audio(emotion: str) -> str | None:
+    """情绪 → 官方情感参考音频公网 URL（runs/shared/tts 经隧道/静态服务暴露）。"""
+    base = os.getenv("PUBLIC_ASSET_BASE_URL", "").rstrip("/")
+    if not base:
+        return None
+    for pattern, fname in _EMO_REF_FILES:
+        if pattern.search(emotion) and (ROOT / "runs" / "shared" / "tts" / fname).exists():
+            return f"{base}/runs/shared/tts/{fname}"
+    return None
+
+
 def resolve_workflow(cfg: dict[str, Any], shot: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     alias = shot.get("workflow")
     if not alias and shot.get("stage"):
@@ -117,8 +134,13 @@ def compile_body(cfg: dict[str, Any], shot: dict[str, Any], style_lock: str = ""
         text = str(shot.get("dialogue") or shot.get("text") or "").strip()
         if text:
             body["prompt_text"] = text
-        body["emo_control_method"] = "与音色参考音频相同"
-        body.update(emotion_to_weights(str(shot.get("emotion") or "")))
+        emo_ref = _emo_ref_audio(str(shot.get("emotion") or ""))
+        if emo_ref:
+            body["emo_control_method"] = "使用情感参考音频"
+            body["emo_ref_audio"] = emo_ref
+        else:
+            body["emo_control_method"] = "与音色参考音频相同"
+            body.update(emotion_to_weights(str(shot.get("emotion") or "")))
 
     refs = list(shot.get("ref_images") or [])
     prefix = wf.get("ref_image_prefix", "ref_image_")

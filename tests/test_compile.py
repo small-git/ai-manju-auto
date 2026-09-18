@@ -83,11 +83,21 @@ def test_compile_body_tts_text_and_voice():
     assert body["emo_angry"] == 0.3
 
 
-def test_compile_body_tts_melancholic_weights():
+def test_compile_body_tts_melancholic_weights(monkeypatch):
+    monkeypatch.delenv("PUBLIC_ASSET_BASE_URL", raising=False)
     shot = {"workflow": "manhua_tts", "dialogue": "别走。", "emotion": "克制的不舍与紧张", "ref_audios": ["http://x/v.mp3"]}
     _, _, body = compile_body(CFG, shot)
+    assert body["emo_control_method"] == "与音色参考音频相同"
     assert body["emo_melancholic"] == 0.9
     assert body["emo_calm"] == 0.3
+
+
+def test_compile_body_tts_emo_ref_audio(monkeypatch):
+    monkeypatch.setenv("PUBLIC_ASSET_BASE_URL", "https://cdn.example/api/media")
+    shot = {"workflow": "manhua_tts", "dialogue": "别走。", "emotion": "不舍", "ref_audios": ["http://x/v.mp3"]}
+    _, _, body = compile_body(CFG, shot)
+    assert body["emo_control_method"] == "使用情感参考音频"
+    assert body["emo_ref_audio"] == "https://cdn.example/api/media/runs/shared/tts/emo_sad.wav"
 
 
 def test_compile_body_tts_missing_text_raises():

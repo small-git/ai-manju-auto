@@ -145,7 +145,24 @@ export function emotionToWeights(emotion?: string): Record<string, number | stri
   return {};
 }
 
-/** AutoDL IndexTTS2：情绪权重 + 音色克隆（prompt_simple 为必填音色参考音频公网 URL）。 */
+/** 情绪 → 官方情感参考音频（runs/shared/tts 下，经隧道公网）。返回公网 URL 或 undefined。 */
+const EMO_REF_MAP: Array<[RegExp, string]> = [
+  [/(不舍|悲伤|难过|沉重|压抑|沉默|忧郁|留恋)/, "emo_sad.wav"],
+  [/(愤怒|生气|激动|憎恨)/, "emo_hate.wav"],
+];
+
+export function emoRefFor(emotion: string | undefined, repoRoot: string, publicBase: string): string | undefined {
+  if (!emotion || !publicBase) return undefined;
+  for (const [re, file] of EMO_REF_MAP) {
+    if (re.test(emotion)) {
+      const local = path.join(repoRoot, "runs", "shared", "tts", file);
+      if (fs.existsSync(local)) return `${publicBase}/runs/shared/tts/${file}`;
+    }
+  }
+  return undefined;
+}
+
+/** AutoDL IndexTTS2：情感参考音频 + 音色克隆（prompt_simple 为必填音色参考音频公网 URL）。 */
 async function synthesizeWithAutodl(opts: {
   text: string;
   destPath: string;
@@ -157,18 +174,20 @@ async function synthesizeWithAutodl(opts: {
     throw new Error("IndexTTS2 需要音色参考音频（voiceRef 公网 URL）");
   }
   const { submitWorkflow, waitResult, downloadResults } = await import("./autodl.js");
+  const cfg = loadConfig();
   const workflowId = process.env.AUTODL_TTS_WORKFLOW_ID || "indextts2-v1";
-  const weights = emotionToWeights(opts.emotion);
+  // 官方工作流情感只认「情感参考音频」；emo_* 权重在「与音色相同」模式下被忽略
+  const emoRef = emoRefFor(opts.emotion, cfg.repoRoot, cfg.publicAssetBaseUrl);
   const body: Record<string, unknown> = {
     prompt_text: opts.text,
     prompt_simple: opts.voiceRef,
-    emo_control_method: "与音色参考音频相同",
-    ...weights,
+    emo_control_method: emoRef ? "使用情感参考音频" : "与音色参考音频相同",
   };
+  if (emoRef) body.emo_ref_audio = emoRef;
   step("TTS", "IndexTTS2 情感配音", {
     workflow_id: workflowId,
     chars: opts.text.length,
-    weights: JSON.stringify(weights),
+    emo_ref: emoRef ? path.basename(emoRef) : "(无，跟随音色)",
   });
   const taskId = await submitWorkflow(workflowId, body, opts.signal);
   const data = await waitResult(taskId, opts.signal);
