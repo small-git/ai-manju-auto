@@ -7,6 +7,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { RUNS_DIR, STORIES_DIR, ensureDir } from "../paths.js";
+import { TRANSITION_SEC, probeDurationSec } from "../production/export_bundle.js";
 import {
   createChapter,
   getProp,
@@ -353,28 +354,71 @@ function exportChapter(storyId: string, chapterId?: string) {
   if (missing.length) {
     throw new Error(`以下镜头还没有成片，无法出片：${missing.join(", ")}`);
   }
-  const files = board.shots.map((s) => s.video_latest!).filter(Boolean);
-  ensureDir(dirs.exportDir);
-  const listFile = path.join(dirs.exportDir, `${pack.chapter_id}_concat.txt`);
-  const outFile = path.join(dirs.exportDir, `${pack.chapter_id}_chapter_cut.mp4`);
-  const listBody = files.map((f) => `file '${f.replace(/\\/g, "/").replace(/'/g, "'\\''")}'`).join("\n");
-  fs.writeFileSync(listFile, listBody, "utf8");
-  const ffmpeg = findFfmpeg();
-  const result = spawnSync(
-    ffmpeg,
-    ["-y", "-f", "concat", "-safe", "0", "-i", listFile, "-c", "copy", outFile],
-    { encoding: "utf8" },
-  );
-  if (result.status !== 0) {
-    throw new Error(`ffmpeg 出片失败：${result.stderr || result.stdout || "unknown"}`);
+  // 片段序列：bridge 过渡片（04_bridge/<shot>_bridge.mp4）自动插到对应衔接处
+  type Segment = { kind: "video" | "bridge"; shot_id: string; file: string; duration: number };
+  const segments: Segment[] = [];
+  for (const s of board.shots) {
+    const shot = pack.shots.find((sh) => sh.shot_id === s.shot_id);
+    if (shot?.bridge_from) {
+      const bridgeFile = path.join(dirs.base, "04_bridge", `${s.shot_id}_bridge.mp4`);
+      if (fs.existsSync(bridgeFile)) {
+        segments.push({ kind: "bridge", shot_id: s.shot_id, file: bridgeFile, duration: probeDurationSec(bridgeFile, 5) });
+      }
+    }
+    segments.push({ kind: "video", shot_id: s.shot_id, file: s.video_latest!, duration: probeDurationSec(s.video_latest!, 5) });
   }
+
+  ensureDir(dirs.exportDir);
+  const outFile = path.join(dirs.exportDir, `${pack.chapter_id}_chapter_cut.mp4`);
+  const ffmpeg = findFfmpeg();
+  const t = segments.length > 1 ? TRANSITION_SEC : 0;
+
+  if (t > 0) {
+    // xfade 叠化拼接（重编码）：所有衔接都有 0.5s 过渡，不再是硬切
+    const inputs = segments.flatMap((s) => ["-i", s.file]);
+    const parts: string[] = [];
+    let prev = "[0:v]";
+    let offset = segments[0].duration - t;
+    for (let i = 1; i < segments.length; i++) {
+      const out = i === segments.length - 1 ? "[vout]" : `[x${i}]`;
+      parts.push(`${prev}[${i}:v]xfade=transition=fade:duration=${t}:offset=${offset.toFixed(3)}${out}`);
+      prev = `[x${i}]`;
+      offset += segments[i].duration - t;
+    }
+    const result = spawnSync(
+      ffmpeg,
+      ["-y", ...inputs, "-filter_complex", parts.join(";"), "-map", "[vout]", "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p", outFile],
+      { encoding: "utf8" },
+    );
+    if (result.status !== 0) {
+      throw new Error(`ffmpeg 叠化出片失败：${(result.stderr || result.stdout || "unknown").slice(-400)}`);
+    }
+  } else {
+    const listFile = path.join(dirs.exportDir, `${pack.chapter_id}_concat.txt`);
+    const listBody = segments.map((s) => `file '${s.file.replace(/\\/g, "/").replace(/'/g, "'\\''")}'`).join("\n");
+    fs.writeFileSync(listFile, listBody, "utf8");
+    const result = spawnSync(
+      ffmpeg,
+      ["-y", "-f", "concat", "-safe", "0", "-i", listFile, "-c", "copy", outFile],
+      { encoding: "utf8" },
+    );
+    if (result.status !== 0) {
+      throw new Error(`ffmpeg 出片失败：${result.stderr || result.stdout || "unknown"}`);
+    }
+  }
+
+  // 对齐 meta：供配音叠轨/字幕按叠化时间轴对齐
+  const meta = { transition_sec: t, segments: segments.map((s) => ({ ...s, file: s.file.replace(/\\/g, "/") })) };
+  fs.writeFileSync(path.join(dirs.exportDir, `${pack.chapter_id}_cut_meta.json`), JSON.stringify(meta, null, 2), "utf8");
   return {
     ok: true,
     story_id: pack.story_id,
     chapter_id: pack.chapter_id,
-    files_used: files,
+    files_used: segments.map((s) => s.file),
+    bridges_inserted: segments.filter((s) => s.kind === "bridge").length,
+    transition_sec: t,
     export_file: outFile,
-    note: "已按镜头顺序拼接成章",
+    note: t > 0 ? `已拼接成章（${segments.length} 段，含 ${meta.segments.length - board.shots.length} 个 bridge，${t}s 叠化转场）` : "已按镜头顺序拼接成章",
   };
 }
 

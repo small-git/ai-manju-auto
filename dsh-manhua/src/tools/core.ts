@@ -42,6 +42,7 @@ import {
 } from "../production/versions.js";
 import {
   buildTimelineManifest,
+  buildSrtFromClips,
   cropGridCell,
   exportJianyingDraft,
   exportStoryZip,
@@ -426,13 +427,17 @@ export async function runBridgeShot(
     { label: `bridge:${args.shot_id}` },
   );
   const primary = result.files.find((f) => f.toLowerCase().endsWith(".mp4")) || result.files[0];
-  const versionInfo = primary ? registerVideoVersion(pack, dirs, args.shot_id, primary) : null;
+  // bridge 是镜间过渡片，必须独立于正片版本体系（否则 selected_video 会被过渡片覆盖）
+  const bridgeDir = path.join(dirs.base, "04_bridge");
+  ensureDir(bridgeDir);
+  const bridgeFile = path.join(bridgeDir, `${args.shot_id}_bridge.mp4`);
+  if (primary) fs.copyFileSync(primary, bridgeFile);
   return {
     ok: true,
     shot_id: args.shot_id,
     bridge_from: shot.bridge_from,
     prev_video: prevVideo,
-    version: versionInfo?.version,
+    bridge_file: primary ? bridgeFile : null,
     files: result.files,
     task_id: result.taskId,
   };
@@ -948,7 +953,14 @@ export async function chapterDeliverTool(
   const timelineFile = String(timelineResult.timeline_file);
   const srtFile = String(timelineResult.srt_file);
   const timeline = timelineResult.timeline as {
-    clips: Array<{ duration_sec: number; audio_file?: string | null; dialogue?: string | null }>;
+    clips: Array<{
+      shot_id?: string;
+      start_sec: number;
+      end_sec: number;
+      duration_sec: number;
+      audio_file?: string | null;
+      dialogue?: string | null;
+    }>;
   };
 
   const chapterCut = path.join(dirs.exportDir, `${pack.chapter_id}_chapter_cut.mp4`);
@@ -956,11 +968,52 @@ export async function chapterDeliverTool(
   let muxNote: string | null = null;
   if (!args.skip_mux && fs.existsSync(chapterCut)) {
     dubFile = path.join(dirs.exportDir, `${pack.chapter_id}_chapter_dub.mp4`);
+    // 按出片 meta 对齐：bridge 段补静音垫、叠化时间轴平移对白字幕
+    const cutMetaPath = path.join(dirs.exportDir, `${pack.chapter_id}_cut_meta.json`);
+    let muxClips: Array<{ duration_sec: number; audio_file?: string | null }> = timeline.clips.map((c) => ({
+      duration_sec: c.duration_sec,
+      audio_file: c.audio_file,
+    }));
+    let transitionSec = 0;
+    let muxSrt: string | null = srtFile;
+    if (fs.existsSync(cutMetaPath)) {
+      type CutSegment = { kind: "video" | "bridge"; shot_id: string; duration: number };
+      const cutMeta = JSON.parse(fs.readFileSync(cutMetaPath, "utf8")) as { transition_sec?: number; segments: CutSegment[] };
+      transitionSec = Math.max(0, cutMeta.transition_sec || 0);
+      const byShot = new Map(timeline.clips.map((c) => [(c as { shot_id?: string }).shot_id, c]));
+      muxClips = [];
+      const srtShift = new Map<string, number>();
+      let tNew = 0;
+      let tOld = 0;
+      for (const seg of cutMeta.segments) {
+        if (seg.kind === "bridge") {
+          muxClips.push({ duration_sec: seg.duration, audio_file: null });
+        } else {
+          const clip = byShot.get(seg.shot_id);
+          muxClips.push({ duration_sec: seg.duration, audio_file: clip?.audio_file });
+          if (clip) {
+            srtShift.set(seg.shot_id, tNew - tOld);
+            tOld += clip.duration_sec;
+          }
+        }
+        tNew += Math.max(0.1, seg.duration) - transitionSec;
+      }
+      if (transitionSec > 0 || srtShift.size !== timeline.clips.length) {
+        const shifted = timeline.clips.map((c) => {
+          const sid = (c as { shot_id?: string }).shot_id;
+          const d = (sid && srtShift.get(sid)) || 0;
+          return { start_sec: c.start_sec + d, end_sec: c.end_sec + d, dialogue: c.dialogue };
+        });
+        muxSrt = path.join(dirs.exportDir, `${pack.chapter_id}_dub_axis.srt`);
+        fs.writeFileSync(muxSrt, buildSrtFromClips(shifted), "utf8");
+      }
+    }
     const muxed = muxChapterDub({
       videoFile: chapterCut,
       outFile: dubFile,
-      clips: timeline.clips,
-      srtFile,
+      clips: muxClips,
+      transitionSec,
+      srtFile: muxSrt,
     });
     muxNote = muxed.note;
   } else if (!args.skip_mux) {

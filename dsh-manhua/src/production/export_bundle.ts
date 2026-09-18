@@ -174,16 +174,22 @@ export function writeSrtBesideTimeline(
   return out;
 }
 
-/** 按镜头 TTS 音轨拼成整章配音，再叠到成片（保留画面，替换音轨） */
+/** 出片叠化转场时长（秒）：exportChapter 与配音叠轨共用，保证音画同轴 */
+export const TRANSITION_SEC = 0.5;
+
+/** 按镜头 TTS 音轨拼成整章配音，再叠到成片（保留画面，替换音轨）。
+ *  transitionSec > 0 时按叠化时间轴对齐：第 i 段起点 = Σdur[0..i-1] − i×T（adelay+amix 混合）。 */
 export function muxChapterDub(opts: {
   videoFile: string;
   outFile: string;
   clips: Array<{ duration_sec: number; audio_file?: string | null }>;
+  transitionSec?: number;
   srtFile?: string | null;
 }): { out_file: string; note: string } {
   const ffmpeg = findFfmpeg();
   if (!ffmpeg) throw new Error("配音叠轨需要 ffmpeg");
   if (!fs.existsSync(opts.videoFile)) throw new Error(`成片不存在: ${opts.videoFile}`);
+  const t = Math.max(0, opts.transitionSec || 0);
 
   step("配音叠轨", "正在按镜头对齐 TTS 音轨");
   const work = path.join(path.dirname(opts.outFile), `_dub_work_${Date.now()}`);
@@ -217,21 +223,45 @@ export function muxChapterDub(opts: {
       parts.push(part);
     }
 
-    const listFile = path.join(work, "concat.txt");
-    fs.writeFileSync(
-      listFile,
-      parts.map((p) => `file '${p.replace(/\\/g, "/").replace(/'/g, "'\\''")}'`).join("\n"),
-      "utf8",
-    );
     const fullAudio = path.join(work, "full.wav");
-    const concat = spawnSync(
-      ffmpeg,
-      ["-y", "-f", "concat", "-safe", "0", "-i", listFile, "-c", "pcm_s16le", fullAudio],
-      { encoding: "utf8" },
-    );
-    if (concat.status !== 0) {
-      fail("配音叠轨", "音轨拼接失败", { error: concat.stderr || concat.stdout });
-      throw new Error(`音轨拼接失败: ${concat.stderr || concat.stdout}`);
+    if (t > 0 && parts.length > 1) {
+      // 叠化时间轴：各段 adelay 到 (Σdur − i×T)，amix 混合
+      const inputs = parts.flatMap((p) => ["-i", p]);
+      const filters: string[] = [];
+      const labels: string[] = [];
+      let offset = 0;
+      for (let i = 0; i < parts.length; i++) {
+        const ms = Math.max(0, Math.round(offset * 1000));
+        filters.push(`[${i}:a]adelay=${ms}|${ms}[d${i}]`);
+        labels.push(`[d${i}]`);
+        offset += Math.max(0.1, opts.clips[i].duration_sec || 5) - t;
+      }
+      filters.push(`${labels.join("")}amix=inputs=${parts.length}:normalize=0[aout]`);
+      const mix = spawnSync(
+        ffmpeg,
+        ["-y", ...inputs, "-filter_complex", filters.join(";"), "-map", "[aout]", "-c:a", "pcm_s16le", fullAudio],
+        { encoding: "utf8" },
+      );
+      if (mix.status !== 0) {
+        fail("配音叠轨", "音轨混合失败", { error: (mix.stderr || mix.stdout || "").slice(-300) });
+        throw new Error(`音轨混合失败: ${(mix.stderr || mix.stdout || "").slice(-300)}`);
+      }
+    } else {
+      const listFile = path.join(work, "concat.txt");
+      fs.writeFileSync(
+        listFile,
+        parts.map((p) => `file '${p.replace(/\\/g, "/").replace(/'/g, "'\\''")}'`).join("\n"),
+        "utf8",
+      );
+      const concat = spawnSync(
+        ffmpeg,
+        ["-y", "-f", "concat", "-safe", "0", "-i", listFile, "-c", "pcm_s16le", fullAudio],
+        { encoding: "utf8" },
+      );
+      if (concat.status !== 0) {
+        fail("配音叠轨", "音轨拼接失败", { error: concat.stderr || concat.stdout });
+        throw new Error(`音轨拼接失败: ${concat.stderr || concat.stdout}`);
+      }
     }
 
     ensureDir(path.dirname(opts.outFile));
