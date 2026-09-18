@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,26 @@ def load_style_lock(name: str | None) -> str:
     if p.exists():
         return p.read_text(encoding="utf-8").strip()
     return str(name).strip()
+
+
+_EMO_WEIGHTS: list[tuple[re.Pattern[str], dict[str, float | str]]] = [
+    (re.compile(r"(不舍|悲伤|难过|沉重|压抑|沉默|忧郁)"), {"emo_melancholic": 0.9, "emo_calm": 0.3}),
+    (re.compile(r"(羞怯|不安|拘谨|害怕|紧张|警惕|焦虑|茫然)"), {"emo_afraid": 0.7}),
+    (re.compile(r"(愤怒|生气|激动)"), {"emo_angry": 0.9}),
+    (re.compile(r"(开心|欢快|喜悦|兴奋|高兴)"), {"emo_happy": 1.0}),
+    (re.compile(r"(厌恶|嫌弃)"), {"emo_disgusted": 0.8}),
+    (re.compile(r"(惊讶|震惊)"), {"emo_surprised": "1"}),
+    (re.compile(r"(坚定|决意|勇敢)"), {"emo_calm": 0.5, "emo_angry": 0.3}),
+    (re.compile(r"(平静|安定|温柔|温暖|安宁|希望|克制)"), {"emo_calm": 0.6}),
+]
+
+
+def emotion_to_weights(emotion: str) -> dict[str, float | str]:
+    """情绪文本 → IndexTTS2 情绪权重向量（首个命中生效）。"""
+    for pattern, weights in _EMO_WEIGHTS:
+        if pattern.search(emotion):
+            return dict(weights)
+    return {}
 
 
 def resolve_workflow(cfg: dict[str, Any], shot: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -93,12 +114,11 @@ def compile_body(cfg: dict[str, Any], shot: dict[str, Any], style_lock: str = ""
             ad = local_defaults.get("audio_duration", duration)
         body["audio_duration"] = int(ad)
     if kind == "tts":
-        text_field = wf.get("text_field") or "text"
         text = str(shot.get("dialogue") or shot.get("text") or "").strip()
         if text:
-            body[text_field] = text
-        if shot.get("emotion"):
-            body["emotion"] = shot["emotion"]
+            body["prompt_text"] = text
+        body["emo_control_method"] = "与音色参考音频相同"
+        body.update(emotion_to_weights(str(shot.get("emotion") or "")))
 
     refs = list(shot.get("ref_images") or [])
     prefix = wf.get("ref_image_prefix", "ref_image_")
@@ -108,11 +128,15 @@ def compile_body(cfg: dict[str, Any], shot: dict[str, Any], style_lock: str = ""
             body[f"{prefix}{i}"] = url
 
     audios = list(shot.get("ref_audios") or [])
-    ap = wf.get("ref_audio_prefix", "ref_audio_")
-    aslots = int(wf.get("ref_audio_slots") or 0)
-    for i, url in enumerate(audios[: aslots or len(audios)]):
-        if url:
-            body[f"{ap}{i}"] = url
+    if kind != "tts":
+        ap = wf.get("ref_audio_prefix", "ref_audio_")
+        aslots = int(wf.get("ref_audio_slots") or 0)
+        for i, url in enumerate(audios[: aslots or len(audios)]):
+            if url:
+                body[f"{ap}{i}"] = url
+    elif audios:
+        # IndexTTS2：音色参考音频为必填单槽 prompt_simple
+        body["prompt_simple"] = audios[0]
 
     if shot.get("first_frame"):
         body["first_frame"] = shot["first_frame"]

@@ -132,13 +132,10 @@ workflows:
 
   manhua_tts:
     workflow_id: indextts2-v1
-    description: "IndexTTS2 配音（入参以工作流页为准；text_field/音频槽位可按需调整）"
+    description: "IndexTTS2 情感配音（prompt_text 文本 + prompt_simple 音色参考音频必填；情绪经 emo_* 权重下发）"
     kind: tts
-    required: [text]
-    optional: [emotion, seed]
-    text_field: text
-    ref_audio_slots: 1
-    ref_audio_prefix: ref_audio_
+    required: [prompt_text, prompt_simple, emo_control_method]
+    optional: [seed]
 
 stages:
   manhua_video: manhua_video_ref

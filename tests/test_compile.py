@@ -75,14 +75,29 @@ def test_compile_body_tts_text_and_voice():
     alias, workflow_id, body = compile_body(CFG, shot)
     assert alias == "manhua_tts"
     assert workflow_id == "indextts2-v1"
-    assert body["text"] == "天亮前必须离开这座城。"
-    assert body["ref_audio_0"] == "http://x/voice.mp3"
-    assert body["emotion"] == "决意"
+    assert body["prompt_text"] == "天亮前必须离开这座城。"
+    assert body["prompt_simple"] == "http://x/voice.mp3"
+    assert body["emo_control_method"] == "与音色参考音频相同"
+    # 决意 → calm 0.5 + angry 0.3
+    assert body["emo_calm"] == 0.5
+    assert body["emo_angry"] == 0.3
+
+
+def test_compile_body_tts_melancholic_weights():
+    shot = {"workflow": "manhua_tts", "dialogue": "别走。", "emotion": "克制的不舍与紧张", "ref_audios": ["http://x/v.mp3"]}
+    _, _, body = compile_body(CFG, shot)
+    assert body["emo_melancholic"] == 0.9
+    assert body["emo_calm"] == 0.3
 
 
 def test_compile_body_tts_missing_text_raises():
     with pytest.raises(AutodlError):
         compile_body(CFG, {"workflow": "manhua_tts"})
+
+
+def test_compile_body_tts_missing_voice_ref_raises():
+    with pytest.raises(AutodlError):
+        compile_body(CFG, {"workflow": "manhua_tts", "dialogue": "你好"})
 
 
 def test_submit_and_finalize_split(tmp_path):

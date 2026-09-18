@@ -125,14 +125,87 @@ async function synthesizeWithOpenAi(opts: {
   };
 }
 
+/** 情绪文本 → IndexTTS2 情绪权重向量（emo_* 0–1.4；首个命中生效）。 */
+const EMO_WEIGHTS: Array<[RegExp, Record<string, number | string>]> = [
+  [/(不舍|悲伤|难过|沉重|压抑|沉默|忧郁)/, { emo_melancholic: 0.9, emo_calm: 0.3 }],
+  [/(羞怯|不安|拘谨|害怕|紧张|警惕|焦虑|茫然)/, { emo_afraid: 0.7 }],
+  [/(愤怒|生气|激动)/, { emo_angry: 0.9 }],
+  [/(开心|欢快|喜悦|兴奋|高兴)/, { emo_happy: 1.0 }],
+  [/(厌恶|嫌弃)/, { emo_disgusted: 0.8 }],
+  [/(惊讶|震惊)/, { emo_surprised: "1" }],
+  [/(坚定|决意|勇敢)/, { emo_calm: 0.5, emo_angry: 0.3 }],
+  [/(平静|安定|温柔|温暖|安宁|希望|克制)/, { emo_calm: 0.6 }],
+];
+
+export function emotionToWeights(emotion?: string): Record<string, number | string> {
+  if (!emotion) return {};
+  for (const [re, w] of EMO_WEIGHTS) {
+    if (re.test(emotion)) return w;
+  }
+  return {};
+}
+
+/** AutoDL IndexTTS2：情绪权重 + 音色克隆（prompt_simple 为必填音色参考音频公网 URL）。 */
+async function synthesizeWithAutodl(opts: {
+  text: string;
+  destPath: string;
+  emotion?: string;
+  voiceRef?: string;
+  signal?: AbortSignal;
+}): Promise<TtsResult> {
+  if (!opts.voiceRef) {
+    throw new Error("IndexTTS2 需要音色参考音频（voiceRef 公网 URL）");
+  }
+  const { submitWorkflow, waitResult, downloadResults } = await import("./autodl.js");
+  const workflowId = process.env.AUTODL_TTS_WORKFLOW_ID || "indextts2-v1";
+  const weights = emotionToWeights(opts.emotion);
+  const body: Record<string, unknown> = {
+    prompt_text: opts.text,
+    prompt_simple: opts.voiceRef,
+    emo_control_method: "与音色参考音频相同",
+    ...weights,
+  };
+  step("TTS", "IndexTTS2 情感配音", {
+    workflow_id: workflowId,
+    chars: opts.text.length,
+    weights: JSON.stringify(weights),
+  });
+  const taskId = await submitWorkflow(workflowId, body, opts.signal);
+  const data = await waitResult(taskId, opts.signal);
+  let dest = opts.destPath;
+  if (!path.extname(dest)) dest += ".mp3";
+  ensureDir(path.dirname(dest));
+  const stem = `${path.basename(dest, path.extname(dest))}_idx`;
+  const files = await downloadResults(data, path.dirname(dest), stem, opts.signal);
+  const primary = files.find((f) => /\.(mp3|wav|m4a|flac|ogg)$/i.test(f)) || files[0];
+  if (!primary) {
+    fail("TTS", "IndexTTS2 未返回音频", { workflow_id: workflowId });
+    throw new Error("IndexTTS2 未返回音频");
+  }
+  if (primary !== dest) fs.copyFileSync(primary, dest);
+  ok("TTS", "IndexTTS2 配音已保存", { path: dest, provider: "autodl-indextts2" });
+  return { localPath: dest, url: publicUrlFor(dest), provider: "autodl-indextts2", model: workflowId };
+}
+
+/** Microsoft Edge 在线语音（也用于角色音色采样） */
+export async function synthesizeWithEdgeSample(opts: {
+  text: string;
+  destPath: string;
+  voice?: string;
+}): Promise<TtsResult> {
+  return synthesizeWithEdge(opts);
+}
+
 /**
  * dialogue → mp3。
- * 优先 OPENAI_TTS_PROVIDER=openai|edge|auto（默认 auto：OpenAI 失败则 edge-tts）。
+ * OPENAI_TTS_PROVIDER=autodl|openai|edge|auto（默认 auto：IndexTTS2（情感）→ OpenAI → edge-tts）。
  */
 export async function synthesizeDialogue(opts: {
   text: string;
   destPath: string;
   voice?: string;
+  voiceRef?: string;
+  emotion?: string;
   prosody?: TtsProsody;
   signal?: AbortSignal;
 }): Promise<TtsResult> {
@@ -142,6 +215,16 @@ export async function synthesizeDialogue(opts: {
   }
   if (mode === "openai") {
     return synthesizeWithOpenAi(opts);
+  }
+  if (mode === "autodl") {
+    return synthesizeWithAutodl(opts);
+  }
+  try {
+    return await synthesizeWithAutodl(opts);
+  } catch (err) {
+    warn("TTS", "IndexTTS2 不可用，回退 OpenAI", {
+      error: err instanceof Error ? err.message.slice(0, 180) : String(err),
+    });
   }
   try {
     return await synthesizeWithOpenAi(opts);
