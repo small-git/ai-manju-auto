@@ -381,7 +381,8 @@ function exportChapter(storyId: string, chapterId?: string) {
     let offset = segments[0].duration - t;
     for (let i = 1; i < segments.length; i++) {
       const out = i === segments.length - 1 ? "[vout]" : `[x${i}]`;
-      parts.push(`${prev}[${i}:v]xfade=transition=fade:duration=${t}:offset=${offset.toFixed(3)}${out}`);
+      // dissolve 比纯 fade 更像剪辑叠化，减轻「跳切」感
+      parts.push(`${prev}[${i}:v]xfade=transition=dissolve:duration=${t}:offset=${offset.toFixed(3)}${out}`);
       prev = `[x${i}]`;
       offset += segments[i].duration - t;
     }

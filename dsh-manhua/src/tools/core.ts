@@ -523,18 +523,28 @@ const VOICE_FEMALE = /(母|妈|奶|婆|姑|姨|姐|妹|女|婶|嫂)/;
 const VOICE_CHILD = /(孩|娃|儿童|少年|小孩|平凡)/;
 const VOICE_MALE = /(父|爸|爷|叔|伯|哥|兄|弟|男|公)/;
 
-/** 情绪 → 韵律（首个命中生效；驱动 edge-tts rate/volume/pitch，OpenAI 折算 speed）。 */
+/** 情绪 → 韵律（复合情绪取顿号后更靠后的词，避免「沉重、坚定」被沉重盖掉）。 */
 const EMOTION_PROSODY: Array<[RegExp, { rate?: string; volume?: string; pitch?: string }]> = [
   [/(不舍|克制|沉重|悲伤|压抑|沉默)/, { rate: "-8%", pitch: "-2Hz", volume: "-5%" }],
   [/(羞怯|不安|拘谨|害怕|茫然)/, { rate: "-5%", pitch: "-1Hz", volume: "-15%" }],
-  [/(紧张|警惕|焦虑)/, { rate: "-3%", volume: "-8%" }],
+  [/(紧张|警惕|焦虑|期待)/, { rate: "-3%", volume: "-8%" }],
   [/(决意|坚定|勇敢|愤怒|激动)/, { rate: "+6%", pitch: "+2Hz" }],
-  [/(温柔|温暖|平静|安定|安宁|希望)/, { rate: "-4%", volume: "-5%" }],
+  [/(温柔|温暖|平静|安定|安宁|希望|朴素|亲近)/, { rate: "-4%", volume: "-5%" }],
   [/(欢快|开心|喜悦|兴奋)/, { rate: "+8%", pitch: "+3Hz" }],
 ];
 
 export function prosodyForEmotion(emotion?: string): { rate?: string; volume?: string; pitch?: string } {
   if (!emotion) return {};
+  const parts = emotion
+    .split(/[、，,/｜|]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const order = parts.length ? [...parts].reverse() : [emotion];
+  for (const part of order) {
+    for (const [re, p] of EMOTION_PROSODY) {
+      if (re.test(part)) return p;
+    }
+  }
   for (const [re, p] of EMOTION_PROSODY) {
     if (re.test(emotion)) return p;
   }

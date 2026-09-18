@@ -153,10 +153,17 @@ const EMO_REF_MAP: Array<[RegExp, string]> = [
 
 export function emoRefFor(emotion: string | undefined, repoRoot: string, publicBase: string): string | undefined {
   if (!emotion || !publicBase) return undefined;
-  for (const [re, file] of EMO_REF_MAP) {
-    if (re.test(emotion)) {
-      const local = path.join(repoRoot, "runs", "shared", "tts", file);
-      if (fs.existsSync(local)) return `${publicBase}/runs/shared/tts/${file}`;
+  const parts = emotion
+    .split(/[、，,/｜|]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const order = parts.length ? [...parts].reverse() : [emotion];
+  for (const part of order) {
+    for (const [re, file] of EMO_REF_MAP) {
+      if (re.test(part)) {
+        const local = path.join(repoRoot, "runs", "shared", "tts", file);
+        if (fs.existsSync(local)) return `${publicBase}/runs/shared/tts/${file}`;
+      }
     }
   }
   return undefined;

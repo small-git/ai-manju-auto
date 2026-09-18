@@ -174,8 +174,9 @@ export function writeSrtBesideTimeline(
   return out;
 }
 
-/** 出片叠化转场时长（秒）：exportChapter 与配音叠轨共用，保证音画同轴 */
-export const TRANSITION_SEC = 0.5;
+/** 出片叠化转场时长（秒）：exportChapter 与配音叠轨共用，保证音画同轴。
+ *  0.5 仍偏硬；跨场景硬切感强时用 ~0.8–1.0 更顺。真连续仍需 bridge 过渡片。 */
+export const TRANSITION_SEC = 0.85;
 
 /** 按镜头 TTS 音轨拼成整章配音，再叠到成片（保留画面，替换音轨）。
  *  transitionSec > 0 时按叠化时间轴对齐：第 i 段起点 = Σdur[0..i-1] − i×T（adelay+amix 混合）。 */
